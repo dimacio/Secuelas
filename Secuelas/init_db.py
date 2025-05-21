@@ -28,33 +28,40 @@ def initialize_database(app_context):
         else:
             print("initialize_database: Empleados ya existen, no se siembran.")
 
-        # Sembrar datos para DocumentAccessLog si la tabla está vacía
+          # NUEVO: Sembrar datos para Documentos si la tabla está vacía
+        if not models.Document.query.first():
+            print("initialize_database: Sembrando documentos...")
+            documents_data = [
+                models.Document(document_token="MANUAL_UEI_001", title="Manual de Orientación UEI", description="Procedimientos estándar y directivas para nuevos analistas.", classification_level=1, creation_date=datetime.datetime(2025, 1, 10)),
+                models.Document(document_token="PROYECTO_QUIMERA", title="Proyecto Quimera - Ultrasecreto", description="Investigación y Desarrollo - Fase Preliminar.", classification_level=5, creation_date=datetime.datetime(2024, 6, 15)),
+                models.Document(document_token="REGISTRO_HISTORICO_77B", title="Registro Histórico 77B - Archivos Clasificados", description="Incidente de seguridad, sector Gamma-7.", classification_level=4, creation_date=datetime.datetime(2023, 3, 22)),
+                models.Document(document_token="PROTOCOLO_EVAC_ALFA", title="Protocolo de Evacuación Alfa", description="Procedimientos de emergencia para el Sitio Alfa.", classification_level=3, creation_date=datetime.datetime(2025, 2, 1))
+            ]
+            db.session.bulk_save_objects(documents_data)
+            db.session.commit()
+            print("initialize_database: Documentos sembrados.")
+        else:
+            print("initialize_database: Documentos ya existen, no se siembran.")
+
+        # Sembrar datos para DocumentAccessLog (ACTUALIZADO)
         if not models.DocumentAccessLog.query.first():
             print("initialize_database: Sembrando logs de acceso...")
+            # Asegúrate de que los employee_id existen y los document_token_fk coinciden con los tokens en la tabla 'documents'
             access_logs_data = [
-                models.DocumentAccessLog(employee_id=1, document_id="MANUAL_UEI_001", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 15, 0), remarks="Acceso estándar de orientación."),
-                models.DocumentAccessLog(employee_id=2, document_id="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 30, 0), remarks="Revisión de Supervisor."),
-                models.DocumentAccessLog(employee_id=5, document_id="REGISTRO_HISTORICO_77B", action="ARCHIVE", access_timestamp=datetime.datetime(2025, 5, 19, 9, 45, 0)),
-                models.DocumentAccessLog(employee_id=3, document_id="PROYECTO_QUIMERA", action="CLASSIFIED_VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 11, 5, 30), remarks="Acceso no programado. Requiere seguimiento."),
-                models.DocumentAccessLog(employee_id=1, document_id="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 14, 20, 0), remarks="Acceso autorizado para tarea de auditoría."),
-                models.DocumentAccessLog(employee_id=4, document_id="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 18, 17, 0, 0), remarks="Revisión Directiva."),
+                models.DocumentAccessLog(employee_id=1, document_token_fk="MANUAL_UEI_001", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 15, 0), remarks="Acceso estándar de orientación."),
+                models.DocumentAccessLog(employee_id=2, document_token_fk="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 30, 0), remarks="Revisión de Supervisor."),
+                models.DocumentAccessLog(employee_id=5, document_token_fk="REGISTRO_HISTORICO_77B", action="ARCHIVE_VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 45, 0)), # Cambié 'ARCHIVE' a 'ARCHIVE_VIEW' por claridad
+                models.DocumentAccessLog(employee_id=3, document_token_fk="PROYECTO_QUIMERA", action="CLASSIFIED_VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 11, 5, 30), remarks="Acceso no programado. Requiere seguimiento."),
+                models.DocumentAccessLog(employee_id=1, document_token_fk="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 14, 20, 0), remarks="Acceso autorizado para tarea de auditoría."),
+                models.DocumentAccessLog(employee_id=4, document_token_fk="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 18, 17, 0, 0), remarks="Revisión Directiva."),
+                models.DocumentAccessLog(employee_id=2, document_token_fk="PROTOCOLO_EVAC_ALFA", action="REVIEW", access_timestamp=datetime.datetime(2025, 5, 20, 10, 0, 0), remarks="Revisión de protocolo de seguridad.")
             ]
             db.session.bulk_save_objects(access_logs_data)
             db.session.commit()
             print("initialize_database: Logs de acceso sembrados.")
         else:
             print("initialize_database: Logs de acceso ya existen, no se siembran.")
-        print("initialize_database: Finalizado.")
+        # Eliminar la siembra para la tabla Archive
+        # if not models.Archive.query.first(): ... (todo este bloque se elimina)
 
-        # Sembrar datos para Archive si la tabla está vacía TEST
-        if not models.Archive.query.first():
-            print("initialize_database: Sembrando archivo...")
-            access_logs_data = [
-                models.Archive(archive_id=1, document_id="MANUAL_UEI_001", department="Unidad de Escrutinio Informativo", content = "Siempre hay que cumplir las misiones, nunca hay que cuestionar las misiones"),
-                 ]
-            db.session.bulk_save_objects(access_logs_data)
-            db.session.commit()
-            print("initialize_database: Logs de acceso archivo.")
-        else:
-            print("initialize_database: Logs de acceso ya existen, no se siembran.")
-        print("initialize_database: Finalizado.")
+    print("initialize_database: Finalizado.")
