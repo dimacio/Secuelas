@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UEI - Panel de Creación de Misiones</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background-color: #0A0A0A; color: #00FF41; }
+        .terminal-container { border: 2px solid #00B32C; padding: 20px; margin: 20px auto; background-color: #0D0D0D; box-shadow: 0 0 15px #00B32C; max-width: 1200px; }
+        .header-admin { color: #cce6ff; border-bottom-color: #006699; }
+        .header-admin h1 { font-size: 2rem; }
+        .header-admin p { color: #8cb3d9; }
+        .form-section { margin-bottom: 30px; padding: 20px; border: 1px solid #004d33; background-color: #0F0F0F; }
+        .form-section h3 { font-size: 1.25rem; color: #5effa0; margin-bottom: 15px; border-bottom: 1px dashed #004d33; padding-bottom: 10px;}
+        .form-label { display: block; margin-bottom: 5px; color: #9effc6; }
+        .form-input, .console-input { width: 100%; background-color: #000; color: #00FF41; border: 1px solid #00B32C; padding: 10px; font-family: 'Courier New', Courier, monospace; margin-bottom:15px; }
+        .console-input { min-height: 150px; }
+        .results-display { margin-top: 15px; padding: 15px; background-color: #051a0e; border: 1px solid #00802b; min-height: 100px; white-space: pre-wrap; word-break: break-all; }
+        .results-display table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .results-display th, .results-display td { border: 1px solid #00B32C; padding: 6px; text-align: left; }
+        .results-display th { background-color: #00330D; }
+        .btn { background-color: #005010; color: #00FF41; border: 1px solid #00FF41; padding: 10px 18px; cursor: pointer; margin-top:10px; font-size: 1rem; }
+        .btn:hover { background-color: #007717; }
+        .btn-execute { background-color: #006080; border-color: #00A0D0; color: #B0E0FF; }
+        .btn-execute:hover { background-color: #007ab3; }
+        .btn-save { background-color: #00802b; border-color: #00FF41; color: #ccffdd; font-size: 1.125rem; padding: 12px 25px; }
+        .btn-save:hover { background-color: #009933; }
+        .flex-container { display: flex; gap: 20px; }
+        .flex-item { flex: 1; }
+        .error-message { color: #ff4d4d; background-color: #330000; border: 1px solid #990000; padding: 10px; margin-top: 10px; }
+        .success-message { color: #ccffcc; background-color: #003300; border: 1px solid #008000; padding: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="terminal-container">
+        <header class="mb-6 text-center header-admin border-b-2 pb-2">
+            <h1>TERMINAL DE COMANDO AVANZADO - UEI</h1>
+            <p>Interfaz de Creación y Gestión de Directivas (Misiones)</p>
+        </header>
+
+        <form id="missionCreateForm" method="POST" action="{{ url_for('main_views.save_mission') }}">
+            <!-- Sección de Información de la Misión -->
+            <section class="form-section">
+                <h3>1. Definición de la Directiva (Mission Briefing)</h3>
+                <div>
+                    <label for="mission_id" class="form-label">ID de la Misión (Numérico, Único):</label>
+                    <input type="number" id="mission_id" name="mission_id" class="form-input" required>
+                </div>
+                <div>
+                    <label for="mission_title" class="form-label">Título de la Directiva:</label>
+                    <input type="text" id="mission_title" name="mission_title" class="form-input" required>
+                </div>
+                <div>
+                    <label for="mission_subject" class="form-label">Asunto del Mensaje del Coordinador:</label>
+                    <input type="text" id="mission_subject" name="mission_subject" class="form-input" required>
+                </div>
+                <div>
+                    <label for="mission_body" class="form-label">Cuerpo del Mensaje del Coordinador:</label>
+                    <textarea id="mission_body" name="mission_body" class="console-input" rows="5" required></textarea>
+                </div>
+                <div>
+                    <label for="mission_hint" class="form-label">Pista para el Analista (Opcional):</label>
+                    <textarea id="mission_hint" name="mission_hint" class="console-input" rows="3"></textarea>
+                </div>
+                 <div>
+                    <label for="mission_success_message" class="form-label">Mensaje de Éxito:</label>
+                    <input type="text" id="mission_success_message" name="mission_success_message" class="form-input" required>
+                </div>
+            </section>
+
+            <!-- Sección de Configuración de la Base de Datos (Setup SQL) -->
+            <section class="form-section">
+                <h3>2. Configuración del Entorno de la Directiva (Setup SQL)</h3>
+                <p class="text-sm text-gray-400 mb-2">Escriba las sentencias SQL (CREATE TABLE, INSERT, etc.) para preparar la base de datos para esta misión. Cada sentencia en una nueva línea o separada por punto y coma.</p>
+                <textarea id="setup_sql" name="setup_sql" class="console-input" rows="10" placeholder="Ej: DROP TABLE IF EXISTS mi_tabla;&#x0a;CREATE TABLE mi_tabla (id INTEGER, nombre TEXT);&#x0a;INSERT INTO mi_tabla VALUES (1, 'Dato1');"></textarea>
+                <button type="button" id="executeSetupSqlBtn" class="btn btn-execute">Probar Configuración SQL</button>
+                <div id="setupSqlResults" class="results-display">Resultados de la configuración aparecerán aquí...</div>
+            </section>
+
+            <!-- Sección de la Consulta Correcta -->
+            <section class="form-section">
+                <h3>3. Definición de la Solución Óptima (Correct Query)</h3>
+                 <p class="text-sm text-gray-400 mb-2">Escriba la consulta SELECT que produce el resultado esperado para esta misión.</p>
+                <textarea id="correct_query" name="correct_query" class="console-input" rows="8" placeholder="Ej: SELECT nombre FROM mi_tabla WHERE id = 1;"></textarea>
+                <button type="button" id="executeCorrectQueryBtn" class="btn btn-execute">Probar Consulta Correcta</button>
+                <div id="correctQueryResults" class="results-display">Resultados de la consulta correcta aparecerán aquí...</div>
+            </section>
+
+            <!-- Sección de Opciones de Evaluación -->
+            <section class="form-section">
+                <h3>4. Criterios de Evaluación</h3>
+                <div>
+                    <input type="checkbox" id="order_matters" name="order_matters" value="true" checked>
+                    <label for="order_matters" class="form-label inline-block ml-2">El orden de las filas importa</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="column_order_matters" name="column_order_matters" value="true" checked>
+                    <label for="column_order_matters" class="form-label inline-block ml-2">El orden de las columnas importa</label>
+                </div>
+                <div>
+                    <input type="checkbox" id="check_column_names" name="check_column_names" value="true" checked>
+                    <label for="check_column_names" class="form-label inline-block ml-2">Los nombres de las columnas deben coincidir</label>
+                </div>
+            </section>
+
+            <div class="text-center mt-8">
+                <button type="submit" class="btn btn-save">Guardar Directiva</button>
+            </div>
+        </form>
+        <div class="mt-8 text-center">
+             <a href="{{ url_for('main_views.landing_page') }}" class="btn">Volver al Inicio</a>
+        </div>
+    </div>
+
+    <script>
+        // Helper para mostrar resultados (simplificado)
+        function displayResults(elementId, data) {
+            const resultsEl = document.getElementById(elementId);
+            resultsEl.innerHTML = ''; // Limpiar resultados anteriores
+
+            if (data.error) {
+                resultsEl.innerHTML = `<p class="error-message">Error: ${data.error}</p>`;
+            } else if (data.message) {
+                 resultsEl.innerHTML = `<p class="success-message">${data.message}</p>`;
+            } else if (data.results && data.columns) {
+                if (data.results.length === 0) {
+                    resultsEl.innerHTML = '<p>La consulta se ejecutó correctamente pero no devolvió filas.</p>';
+                    return;
+                }
+                let table = '<table><thead><tr>';
+                data.columns.forEach(col => table += `<th>${col}</th>`);
+                table += '</tr></thead><tbody>';
+                data.results.forEach(row => {
+                    table += '<tr>';
+                    data.columns.forEach(colName => table += `<td>${row[colName] !== null && row[colName] !== undefined ? row[colName] : ''}</td>`);
+                    table += '</tr>';
+                });
+                table += '</tbody></table>';
+                resultsEl.innerHTML = table;
+            } else {
+                resultsEl.innerHTML = '<p>Respuesta no reconocida del servidor.</p>';
+            }
+        }
+
+        // Ejecutar Setup SQL
+        document.getElementById('executeSetupSqlBtn').addEventListener('click', async () => {
+            const setupSql = document.getElementById('setup_sql').value;
+            const resultsEl = document.getElementById('setupSqlResults');
+            resultsEl.textContent = 'Procesando configuración SQL...';
+
+            try {
+                const response = await fetch("{{ url_for('main_views.admin_execute_setup_sql') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ setup_sql: setupSql })
+                });
+                const data = await response.json();
+                displayResults('setupSqlResults', data);
+            } catch (err) {
+                displayResults('setupSqlResults', { error: 'Error de conexión o respuesta no válida: ' + err.message });
+            }
+        });
+
+        // Ejecutar Correct Query
+        document.getElementById('executeCorrectQueryBtn').addEventListener('click', async () => {
+            const correctQuery = document.getElementById('correct_query').value;
+            const setupSql = document.getElementById('setup_sql').value; // Enviar setup_sql para que el backend pueda preparar la BD antes de probar la query
+            const resultsEl = document.getElementById('correctQueryResults');
+            resultsEl.textContent = 'Ejecutando consulta correcta...';
+            
+            if (!correctQuery.trim().toUpperCase().startsWith("SELECT")) {
+                displayResults('correctQueryResults', { error: 'La "Consulta Correcta" debe ser una sentencia SELECT.' });
+                return;
+            }
+
+            try {
+                const response = await fetch("{{ url_for('main_views.admin_execute_correct_query') }}", {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ correct_query: correctQuery, setup_sql: setupSql }) // Incluir setup_sql
+                });
+                const data = await response.json();
+                displayResults('correctQueryResults', data);
+            } catch (err) {
+                displayResults('correctQueryResults', { error: 'Error de conexión o respuesta no válida: ' + err.message });
+            }
+        });
+
+        // Guardar Misión (envío de formulario estándar)
+        // El formulario se enviará a /admin/save_mission
+        // Aquí podrías añadir validación del lado del cliente antes de enviar si es necesario.
+        document.getElementById('missionCreateForm').addEventListener('submit', function(event) {
+            // Ejemplo de validación simple
+            const missionId = document.getElementById('mission_id').value;
+            if (!missionId) {
+                alert('El ID de la Misión es obligatorio.');
+                event.preventDefault(); // Detener envío
+                return;
+            }
+            // Añadir más validaciones según sea necesario
+            alert('Formulario enviado para guardar la misión (lógica de backend pendiente).');
+        });
+
+    </script>
+</body>
+</html>

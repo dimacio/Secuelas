@@ -1,0 +1,32 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secuelas - Inicio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; background-color: #0A0A0A; color: #00FF41; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .container { border: 2px solid #00FF41; padding: 40px; background-color: #0D0D0D; box-shadow: 0 0 25px #00FF41; text-align: center; max-width: 600px; width: 100%; }
+        .title { font-size: 2.5rem; /* Equivalente a text-4xl o un poco más */ margin-bottom: 1.5rem; /* mb-6 */ border-bottom: 2px solid #00FF41; padding-bottom: 0.5rem; /* pb-2 */ }
+        .subtitle { font-size: 1.125rem; /* text-lg */ margin-bottom: 2rem; /* mb-8 */ color: #00B32C; }
+        .btn-container { display: flex; flex-direction: column; gap: 1rem; /* space-y-4 */ margin-top: 1.5rem; /* mt-6 */ }
+        .btn { background-color: #005010; color: #00FF41; border: 1px solid #00FF41; padding: 12px 20px; text-decoration: none; font-size: 1.125rem; /* text-lg */ cursor: pointer; transition: background-color 0.3s ease, box-shadow 0.3s ease; }
+        .btn:hover { background-color: #007717; box-shadow: 0 0 10px #00FF41; }
+        .btn-admin { background-color: #00334d; border-color: #006699; color: #cce6ff; }
+        .btn-admin:hover { background-color: #004c73; box-shadow: 0 0 10px #006699; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">SECUELAS</h1>
+        <p class="subtitle">Plataforma de Aprendizaje SQL Interactivo</p>
+        
+        <div class="btn-container">
+            <a href="{{ url_for('main_views.game_interface') }}" class="btn">Modo Juego</a>
+            <a href="{{ url_for('main_views.admin_panel') }}" class="btn btn-admin">Modo Administrador</a>
+        </div>
+    </div>
+</body>
+</html>
