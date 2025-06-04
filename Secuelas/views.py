@@ -31,19 +31,19 @@ def setup_current_mission_db(mission_id):
         flash("ID de misión inválido para la configuración de la base de datos.", "error")
         return False
         
-    current_mission_db = get_mission_from_db(mission_id) 
-    if current_mission_db and current_mission_db.setup_sql: 
+    current_mission_db_obj = get_mission_from_db(mission_id) 
+    if current_mission_db_obj and current_mission_db_obj.setup_sql: 
         try:
             print(f"setup_current_mission_db: Configurando DB para Misión ID: {mission_id}")
             with current_app.app_context():
-                 execute_sql_script(db.session, current_mission_db.setup_sql) 
+                 execute_sql_script(db.session, current_mission_db_obj.setup_sql) 
             print(f"setup_current_mission_db: DB configurada para Misión ID: {mission_id}")
             return True
         except Exception as e:
             flash(f"Error crítico al configurar la base de datos para la misión: {e}", "error")
             print(f"setup_current_mission_db: Error crítico al configurar la base de datos para la misión {mission_id}: {e}")
             return False
-    elif current_mission_db:
+    elif current_mission_db_obj:
         print(f"setup_current_mission_db: No hay 'setup_sql' para la Misión ID: {mission_id}. Se asume que la DB está lista.")
         return True
     else:
@@ -146,6 +146,22 @@ def submit_query():
     session['last_query'] = user_sql_query
 
     current_mission_id = session.get('current_mission_id', 1)
+    
+    # Obtener el objeto de misión de la BD
+    current_mission_object = get_mission_from_db(current_mission_id)
+
+    if not current_mission_object:
+        flash("Error: No se pudo determinar la misión actual desde la BD.", "error")
+        return redirect(url_for('main_views.game_interface'))
+
+    # Extraer todos los atributos necesarios ANTES de otras operaciones de BD
+    mission_eval_options = current_mission_object.evaluation_options
+    mission_correct_query_script = current_mission_object.correct_query_script
+    mission_success_message = current_mission_object.success_message
+    mission_hint = current_mission_object.hint
+    # No es necesario extraer el ID, ya lo tenemos en current_mission_id
+
+    # Verificar si el usuario ya completó todas las misiones disponibles
     all_missions_db_objects = get_all_missions_from_db() 
     all_mission_ids = [m.id for m in all_missions_db_objects]
     last_db_mission_id = all_mission_ids[-1] if all_mission_ids else 0
@@ -154,16 +170,10 @@ def submit_query():
         flash("Ya ha completado todas las misiones disponibles.", "info")
         return redirect(url_for('main_views.game_interface'))
 
-    current_mission_db = get_mission_from_db(current_mission_id)
-
-    if not current_mission_db:
-        flash("Error: No se pudo determinar la misión actual desde la BD.", "error")
-        return redirect(url_for('main_views.game_interface'))
-
     session['mission_completed_show_results'] = False 
 
     restricted_keywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'CREATE', 'ALTER', 'GRANT', 'TRUNCATE', 'EXEC', 'PRAGMA']
-    allow_restricted = current_mission_db.evaluation_options.get("allow_restricted_keywords", False) 
+    allow_restricted = mission_eval_options.get("allow_restricted_keywords", False) 
     
     query_upper = user_sql_query.upper()
     if not (query_upper.startswith("SELECT") or query_upper.startswith("WITH")) and not allow_restricted:
@@ -182,7 +192,9 @@ def submit_query():
     eval_message = ""
 
     try:
+        # Configurar la BD para la misión actual
         if not setup_current_mission_db(current_mission_id):
+            # El error ya fue flasheado por setup_current_mission_db
             return redirect(url_for('main_views.game_interface'))
 
         print(f"Ejecutando consulta del usuario para Misión {current_mission_id}: {user_sql_query}")
@@ -192,23 +204,24 @@ def submit_query():
             user_column_names = list(user_result_proxy.keys())
             user_query_results = [dict(row._mapping) for row in user_result_proxy.fetchall()]
         else: 
-            db.session.commit() 
+            db.session.commit() # Para DML (si se permitieran)
             user_query_results = [{"status": "Comando ejecutado, no se devolvieron filas."}] 
             user_column_names = ["status"]
             
-        correct_query_text = current_mission_db.correct_query_script 
-        print(f"Ejecutando consulta correcta para Misión {current_mission_id}: {correct_query_text}")
-        correct_result_proxy = db.session.execute(text(correct_query_text))
+        # Usar la variable local con el script de la consulta correcta
+        print(f"Ejecutando consulta correcta para Misión {current_mission_id}: {mission_correct_query_script}")
+        correct_result_proxy = db.session.execute(text(mission_correct_query_script))
         
         correct_column_names = list(correct_result_proxy.keys())
         correct_query_results = [dict(row._mapping) for row in correct_result_proxy.fetchall()]
         
+        # Usar la variable local con las opciones de evaluación
         is_correct, eval_message = compare_results(
             user_results=user_query_results,
             user_columns=user_column_names,
             correct_results=correct_query_results,
             correct_columns=correct_column_names,
-            eval_options=current_mission_db.evaluation_options 
+            eval_options=mission_eval_options 
         )
         
         session['query_results'] = user_query_results 
@@ -216,7 +229,8 @@ def submit_query():
         session.pop('sql_error', None) 
 
         if is_correct:
-            flash(current_mission_db.success_message or "¡Consulta correcta!", "success") 
+            # Usar la variable local con el mensaje de éxito
+            flash(mission_success_message or "¡Consulta correcta!", "success") 
             session['mission_completed_show_results'] = True
             session['completed_mission_id_for_display'] = current_mission_id
             
@@ -227,8 +241,9 @@ def submit_query():
                  session.modified = True
         else: 
             flash(eval_message, "warning") 
-            if current_mission_db.hint: 
-                flash(f"PISTA: {current_mission_db.hint}", "info")
+            # Usar la variable local con la pista
+            if mission_hint: 
+                flash(f"PISTA: {mission_hint}", "info")
                 
     except exc.SQLAlchemyError as e: 
         db.session.rollback() 
@@ -237,8 +252,9 @@ def submit_query():
         session['sql_error'] = f"Error de Sintaxis o Ejecución: {error_message_short}"
         session.pop('query_results', None) 
         session.pop('column_names', None)
-        if current_mission_db and current_mission_db.hint: 
-            flash(f"PISTA: {current_mission_db.hint}", "info")
+        # Usar la variable local con la pista, verificando que no sea None
+        if mission_hint: 
+            flash(f"PISTA: {mission_hint}", "info")
     except Exception as e: 
         db.session.rollback()
         session['sql_error'] = f"Error inesperado al procesar la consulta: {str(e)}"
@@ -246,8 +262,6 @@ def submit_query():
         session.pop('column_names', None)
         print(f"Error inesperado en submit_query: {e}", exc_info=True) 
     finally:
-        # Flask-SQLAlchemy generalmente maneja el cierre de sesión al final de la solicitud.
-        # db.session.close() # Descomentar con precaución si se sospechan problemas de sesión persistentes.
         pass
 
     return redirect(url_for('main_views.game_interface'))
@@ -302,6 +316,7 @@ def reset_progress():
     return redirect(url_for('main_views.landing_page'))
 
 # --- Rutas del Panel de Administrador ---
+# (El resto de las rutas de administrador permanecen igual)
 @main_views.route('/admin', methods=['GET'])
 def admin_panel():
     return render_template('admin_panel.html')
