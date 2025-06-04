@@ -2,7 +2,7 @@
 import os
 from flask import Flask
 from extensions import db
-from init_db import initialize_first_mission_db # Cambiado de initialize_database
+from init_db import initialize_app_database # Ensures the correct function name is imported
 
 def create_app():
     """
@@ -12,14 +12,17 @@ def create_app():
     app_instance = Flask(__name__)
     print(f"create_app: Instancia de Flask creada con nombre '{app_instance.name}'.")
 
-    # Configuración de la aplicación
-    app_instance.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'una_llave_secreta_por_defecto_muy_segura_cambiar')
+    app_instance.config['SECRET_KEY'] = os.environ.get('FLASK_SECRET_KEY', 'una_llave_secreta_por_defecto_muy_segura_cambiar_ya_mismo')
     
-    # URI de la base de datos: usa variable de entorno o un valor por defecto (SQLite en memoria)
-    # Para PostgreSQL, sería algo como: 'postgresql://user:password@host:port/database_name'
-    app_instance.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///:memory:')
+    instance_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'instance')
+    if not os.path.exists(instance_path):
+        os.makedirs(instance_path)
+    
+    default_db_url = f"sqlite:///{os.path.join(instance_path, 'secuelas_game.db')}"
+    app_instance.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', default_db_url)
+    
     app_instance.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    # app_instance.config['SQLALCHEMY_ECHO'] = True # Útil para depurar SQL generado
+    # app_instance.config['SQLALCHEMY_ECHO'] = True 
 
     print(f"create_app: Usando DATABASE_URL: {app_instance.config['SQLALCHEMY_DATABASE_URI']}")
 
@@ -27,8 +30,6 @@ def create_app():
     db.init_app(app_instance)
     print("create_app: SQLAlchemy inicializado.")
 
-    # Importar y registrar el Blueprint desde views.py
-    # Mover la importación aquí para evitar importaciones circulares si views.py importa 'current_app'
     from views import main_views 
     print(f"create_app: Registrando Blueprint '{main_views.name}'...")
     app_instance.register_blueprint(main_views)
@@ -36,16 +37,13 @@ def create_app():
 
     return app_instance
 
-# El punto de entrada principal de la aplicación
 if __name__ == '__main__':
-    app = create_app() # Crea la aplicación usando la factory
+    app = create_app()
 
-    # Inicializar la base de datos con la aplicación creada
-    # Esto asegura que las tablas (si las hay definidas en models.py para la app)
-    # y el setup_sql de la primera misión se ejecuten.
-    initialize_first_mission_db(app)
+    # Inicializar la base de datos: crear tablas (incluida mission_definitions)
+    # y cargar misiones iniciales si es necesario.
+    # This function is now correctly named initialize_app_database
+    initialize_app_database(app)
 
     print("Ejecutando app.run()...")
-    # debug=True activa el reiniciador automático y el depurador.
-    # host='0.0.0.0' para que sea accesible desde fuera del contenedor/máquina.
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))

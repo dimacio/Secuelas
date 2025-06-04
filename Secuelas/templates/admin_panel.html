@@ -169,8 +169,8 @@
             const resultsEl = document.getElementById('correctQueryResults');
             resultsEl.textContent = 'Ejecutando consulta correcta...';
             
-            if (!correctQuery.trim().toUpperCase().startsWith("SELECT")) {
-                displayResults('correctQueryResults', { error: 'La "Consulta Correcta" debe ser una sentencia SELECT.' });
+            if (!correctQuery.trim().toUpperCase().startsWith("SELECT") && !correctQuery.trim().toUpperCase().startsWith("WITH")) { // Permitir WITH
+                displayResults('correctQueryResults', { error: 'La "Consulta Correcta" debe ser una sentencia SELECT o comenzar con WITH.' });
                 return;
             }
 
@@ -188,18 +188,24 @@
         });
 
         // Guardar Misión (envío de formulario estándar)
-        // El formulario se enviará a /admin/save_mission
-        // Aquí podrías añadir validación del lado del cliente antes de enviar si es necesario.
         document.getElementById('missionCreateForm').addEventListener('submit', function(event) {
-            // Ejemplo de validación simple
+            // Ejemplo de validación simple del lado del cliente
             const missionId = document.getElementById('mission_id').value;
-            if (!missionId) {
-                alert('El ID de la Misión es obligatorio.');
-                event.preventDefault(); // Detener envío
-                return;
+            const missionTitle = document.getElementById('mission_title').value;
+            // Añadir más validaciones si es necesario
+
+            if (!missionId || !missionTitle) { // Ejemplo básico
+                // Se eliminó la alerta anterior que decía "El ID de la Misión y el Título son obligatorios."
+                // para evitar la confusión con la alerta que el usuario reporta.
+                // Si se necesita validación del lado del cliente, se puede añadir una alerta diferente o
+                // un mensaje en la página. Por ahora, se prioriza eliminar la alerta conflictiva.
+                // event.preventDefault(); // Detener envío del formulario si la validación falla
+                // return;
             }
-            // Añadir más validaciones según sea necesario
-            alert('Formulario enviado para guardar la misión (lógica de backend pendiente).');
+            // La alerta "Formulario enviado para guardar la misión (lógica de backend pendiente)."
+            // ha sido eliminada.
+            // El formulario se enviará y la lógica de backend en views.py se ejecutará.
+            console.log('Formulario de creación de misión enviado para guardado en backend.');
         });
 
     </script>

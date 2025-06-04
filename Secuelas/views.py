@@ -1,63 +1,80 @@
 # Secuelas/views.py
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, render_template_string, jsonify
-from sqlalchemy import text, exc
+from sqlalchemy import text, exc, asc # Importar asc para ordenar
 from extensions import db
-from config import MISSIONS
+# from config import MISSIONS # Ya no se usa directamente para cargar misiones
+from models import MissionDefinitionDB # Importar el modelo de la BD
 from evaluation import compare_results
 from init_db import execute_sql_script
+import json # Para el guardado de mission_evaluation_options
 
 main_views = Blueprint('main_views', __name__)
+
+def get_all_missions_from_db():
+    """Obtiene todas las misiones activas de la base de datos, ordenadas por ID."""
+    return MissionDefinitionDB.query.filter_by(is_active=True).order_by(asc(MissionDefinitionDB.id)).all()
+
+def get_mission_from_db(mission_id):
+    """Obtiene una misión específica de la base de datos por su ID."""
+    return MissionDefinitionDB.query.get(mission_id)
+
 
 @main_views.route('/', methods=['GET'])
 def landing_page():
     return render_template('landing_page.html')
 
 def setup_current_mission_db(mission_id):
-    current_mission = next((m for m in MISSIONS if m['id'] == mission_id), None)
-    if current_mission and 'setup_sql' in current_mission:
+    """Configura la base de datos para el mission_id dado usando su setup_sql desde la BD."""
+    current_mission_db = get_mission_from_db(mission_id) # Obtener de la BD
+    if current_mission_db and current_mission_db.setup_sql: # Usar la propiedad .setup_sql
         try:
             print(f"setup_current_mission_db: Configurando DB para Misión ID: {mission_id}")
             with current_app.app_context():
-                 execute_sql_script(db.session, current_mission['setup_sql'])
+                 execute_sql_script(db.session, current_mission_db.setup_sql) # .setup_sql devuelve lista
             print(f"setup_current_mission_db: DB configurada para Misión ID: {mission_id}")
             return True
         except Exception as e:
             flash(f"Error crítico al configurar la base de datos para la misión: {e}", "error")
             print(f"setup_current_mission_db: Error crítico al configurar la base de datos para la misión {mission_id}: {e}")
             return False
-    elif current_mission:
+    elif current_mission_db:
         print(f"setup_current_mission_db: No hay 'setup_sql' para la Misión ID: {mission_id}. Se asume que la DB está lista.")
         return True
     else:
-        flash(f"Misión ID {mission_id} no encontrada para configuración de DB.", "error")
-        print(f"setup_current_mission_db: Misión ID {mission_id} no encontrada.")
+        flash(f"Misión ID {mission_id} no encontrada en la base de datos para configuración.", "error")
+        print(f"setup_current_mission_db: Misión ID {mission_id} no encontrada en la BD.")
         return False
 
 @main_views.route('/game', methods=['GET'])
 def game_interface():
     if 'current_mission_id' not in session:
-        session['current_mission_id'] = 1 
+        # Al iniciar, tomar el ID de la primera misión de la BD
+        first_mission_in_db = MissionDefinitionDB.query.filter_by(is_active=True).order_by(asc(MissionDefinitionDB.id)).first()
+        if first_mission_in_db:
+            session['current_mission_id'] = first_mission_in_db.id
+        else:
+            flash("No hay misiones disponibles en este momento. Contacte al administrador.", "error")
+            return redirect(url_for('main_views.landing_page'))
         session['archived_findings'] = []
     
-    current_mission_id = session.get('current_mission_id', 1)
+    current_mission_id = session.get('current_mission_id', 1) # Fallback a 1 si algo raro pasa
     mission_completed_show_results = session.get('mission_completed_show_results', False)
     
+    all_missions_db = get_all_missions_from_db()
+    num_total_missions = len(all_missions_db)
+
     if not mission_completed_show_results:
-        # Solo configurar la BD si el ID de misión es válido y existe
-        if any(m['id'] == current_mission_id for m in MISSIONS):
+        mission_to_setup = get_mission_from_db(current_mission_id)
+        if mission_to_setup:
             if not setup_current_mission_db(current_mission_id):
-                 # Si setup_current_mission_db ya flashea el error, no necesitamos hacerlo aquí.
-                 # Podríamos redirigir a una página de error o a la landing page.
-                 return redirect(url_for('main_views.landing_page')) # Ejemplo de redirección
-        elif current_mission_id > len(MISSIONS): # Ya pasó la última misión
-            pass # Se manejará abajo para mostrar "Fin de la Demostración"
-        else: # ID de misión inválido o no encontrado, pero no es el fin.
+                 return redirect(url_for('main_views.landing_page'))
+        elif current_mission_id > (all_missions_db[-1].id if all_missions_db else 0): # Ya pasó la última misión
+            pass
+        else: 
             flash(f"Error: No se puede cargar la misión ID {current_mission_id}. Volviendo al inicio.", "error")
-            session.clear() # Limpiar sesión para evitar bucles
+            session.clear()
             return redirect(url_for('main_views.landing_page'))
 
-
-    num_total_missions = len(MISSIONS)
     is_final_mission = False
     mission_data_for_template = None
 
@@ -65,23 +82,48 @@ def game_interface():
     if mission_completed_show_results:
         mission_id_to_load = session.get('completed_mission_id_for_display', current_mission_id)
     
-    mission_data_for_template = next((m for m in MISSIONS if m['id'] == mission_id_to_load), None)
+    mission_data_for_template = get_mission_from_db(mission_id_to_load)
 
-    if not mission_completed_show_results and current_mission_id > num_total_missions:
-        mission_data_for_template = {
+    # Determinar si es la última misión o si se han completado todas
+    last_db_mission_id = all_missions_db[-1].id if all_missions_db else 0
+    if not mission_completed_show_results and current_mission_id > last_db_mission_id and last_db_mission_id > 0 :
+        mission_data_for_template_dict = { # Convertir a dict para la plantilla si es necesario
             "id": current_mission_id, 
             "title": "Fin de la Demostración",
             "coordinator_message_subject": "Evaluación Concluida",
-            "coordinator_message_body": "Ha completado todas las directivas asignadas en esta demostración. Su desempeño ha sido registrado. El futuro es... incierto.",
+            "coordinator_message_body": "Ha completado todas las directivas asignadas. Su desempeño ha sido registrado.",
+            # Añadir otros campos que la plantilla espere si mission_data_for_template es None aquí
+            "hint": None,
+            "success_message": None,
+            "evaluation_options": {} # Añadir un valor por defecto
         }
         is_final_mission = True
     elif not mission_data_for_template and not is_final_mission: 
-        flash(f"Error: Misión ID {mission_id_to_load} no encontrada.", "error")
-        mission_data_for_template = { 
+        flash(f"Error: Misión ID {mission_id_to_load} no encontrada en la BD.", "error")
+        mission_data_for_template_dict = { # Fallback
             "id": -1, "title": "Error de Sistema",
             "coordinator_message_subject": "Fallo en el Sistema de Misiones",
-            "coordinator_message_body": "Contacte al administrador. Código de error: M_NOT_FOUND",
+            "coordinator_message_body": "Contacte al administrador. Código de error: M_DB_NOT_FOUND",
+            "hint": None, "success_message": None, "evaluation_options": {}
         }
+    else:
+        # Convertir el objeto MissionDefinitionDB a un diccionario si la plantilla lo espera así
+        # o acceder a los atributos directamente en la plantilla (ej. mission.title)
+        # Por consistencia con el caso "Fin de la Demostración", podemos convertirlo.
+        if mission_data_for_template:
+            mission_data_for_template_dict = {
+                "id": mission_data_for_template.id,
+                "title": mission_data_for_template.title,
+                "coordinator_message_subject": mission_data_for_template.coordinator_message_subject,
+                "coordinator_message_body": mission_data_for_template.coordinator_message_body,
+                "hint": mission_data_for_template.hint,
+                "success_message": mission_data_for_template.success_message,
+                "evaluation_options": mission_data_for_template.evaluation_options # Usa la property
+                # No incluimos setup_sql ni correct_query en lo que va a la plantilla del juego
+            }
+        else: # Si mission_data_for_template sigue siendo None (ej. ID muy alto pero no es "fin de demo")
+             mission_data_for_template_dict = { "id": -1, "title": "Misión Desconocida", "coordinator_message_subject": "-", "coordinator_message_body": "Esta misión no existe."}
+
 
     query_results = session.get('query_results', None)
     column_names = session.get('column_names', None)
@@ -94,7 +136,7 @@ def game_interface():
         session.pop('sql_error', None)
 
     return render_template('index.html',
-                           mission=mission_data_for_template,
+                           mission=mission_data_for_template_dict, # Enviar el diccionario
                            results=query_results,
                            columns=column_names,
                            error=sql_error,
@@ -102,7 +144,7 @@ def game_interface():
                            archived_findings=session.get('archived_findings', []),
                            is_final_mission=is_final_mission,
                            mission_completed_show_results=mission_completed_show_results,
-                           num_total_missions=num_total_missions)
+                           num_total_missions=num_total_missions) # num_total_missions de la BD
 
 @main_views.route('/submit_query', methods=['POST'])
 def submit_query():
@@ -110,30 +152,32 @@ def submit_query():
     session['last_query'] = user_sql_query
 
     current_mission_id = session.get('current_mission_id', 1)
-    if current_mission_id > len(MISSIONS) and not session.get('mission_completed_show_results'): 
+    all_missions_db = get_all_missions_from_db()
+    last_db_mission_id = all_missions_db[-1].id if all_missions_db else 0
+
+    if current_mission_id > last_db_mission_id and last_db_mission_id > 0 and not session.get('mission_completed_show_results'): 
         flash("Ya ha completado todas las misiones disponibles.", "info")
         return redirect(url_for('main_views.game_interface'))
 
-    current_mission = next((m for m in MISSIONS if m['id'] == current_mission_id), None)
+    current_mission_db = get_mission_from_db(current_mission_id)
 
-    if not current_mission:
-        flash("Error: No se pudo determinar la misión actual o ya ha finalizado.", "error")
+    if not current_mission_db:
+        flash("Error: No se pudo determinar la misión actual desde la BD.", "error")
         return redirect(url_for('main_views.game_interface'))
 
     session['mission_completed_show_results'] = False 
 
     restricted_keywords = ['DROP', 'DELETE', 'UPDATE', 'INSERT', 'CREATE', 'ALTER', 'GRANT', 'TRUNCATE', 'EXEC', 'PRAGMA']
-    allow_restricted = current_mission.get("allow_restricted_keywords", False) 
+    allow_restricted = current_mission_db.evaluation_options.get("allow_restricted_keywords", False) 
     
-    if not user_sql_query.upper().startswith("SELECT") and not allow_restricted:
-        session['sql_error'] = "Comando no permitido. En esta fase, solo se permiten consultas SELECT."
+    query_upper = user_sql_query.upper()
+    if not (query_upper.startswith("SELECT") or query_upper.startswith("WITH")) and not allow_restricted:
+        session['sql_error'] = "Comando no permitido. En esta fase, solo se permiten consultas SELECT o que comiencen con WITH."
         return redirect(url_for('main_views.game_interface'))
     
     if not allow_restricted:
         for keyword in restricted_keywords:
-            # Mejorar la detección para evitar falsos positivos en strings dentro de SELECTs
-            # Por ahora, una simplificación: si no es SELECT y contiene palabra clave, restringir.
-            if not user_sql_query.upper().startswith("SELECT") and f" {keyword.upper()} " in f" {user_sql_query.upper()} ":
+            if f" {keyword} " in f" {query_upper} " and not (query_upper.startswith("SELECT") or query_upper.startswith("WITH")):
                 session['sql_error'] = f"Comando '{keyword}' detectado y no permitido en esta misión."
                 return redirect(url_for('main_views.game_interface'))
 
@@ -154,7 +198,7 @@ def submit_query():
             user_query_results = [{"status": "Comando ejecutado, no se devolvieron filas."}] 
             user_column_names = ["status"]
             
-        correct_query_text = current_mission['correct_query']
+        correct_query_text = current_mission_db.correct_query_script 
         print(f"Ejecutando consulta correcta para Misión {current_mission_id}: {correct_query_text}")
         correct_result_proxy = db.session.execute(text(correct_query_text))
         
@@ -167,7 +211,7 @@ def submit_query():
             user_columns=user_column_names,
             correct_results=correct_query_results,
             correct_columns=correct_column_names,
-            eval_options=current_mission['evaluation_options']
+            eval_options=current_mission_db.evaluation_options 
         )
         
         session['query_results'] = user_query_results 
@@ -175,7 +219,7 @@ def submit_query():
         session.pop('sql_error', None) 
 
         if is_correct:
-            flash(current_mission.get("success_message", "¡Consulta correcta!"), "success")
+            flash(current_mission_db.success_message or "¡Consulta correcta!", "success") 
             session['mission_completed_show_results'] = True
             session['completed_mission_id_for_display'] = current_mission_id
             
@@ -186,8 +230,8 @@ def submit_query():
                  session.modified = True
         else: 
             flash(eval_message, "warning") 
-            if current_mission.get("hint"):
-                flash(f"PISTA: {current_mission['hint']}", "info")
+            if current_mission_db.hint: 
+                flash(f"PISTA: {current_mission_db.hint}", "info")
                 
     except exc.SQLAlchemyError as e: 
         db.session.rollback() 
@@ -196,8 +240,8 @@ def submit_query():
         session['sql_error'] = f"Error de Sintaxis o Ejecución: {error_message_short}"
         session.pop('query_results', None) 
         session.pop('column_names', None)
-        if current_mission and current_mission.get("hint"): 
-            flash(f"PISTA: {current_mission['hint']}", "info")
+        if current_mission_db and current_mission_db.hint: 
+            flash(f"PISTA: {current_mission_db.hint}", "info")
     except Exception as e: 
         db.session.rollback()
         session['sql_error'] = f"Error inesperado al procesar la consulta: {str(e)}"
@@ -210,15 +254,24 @@ def submit_query():
 @main_views.route('/next_mission', methods=['POST'])
 def next_mission():
     current_mission_id = session.get('current_mission_id', 1)
+    all_missions_db = get_all_missions_from_db()
     
     if session.get('mission_completed_show_results', False) and \
        session.get('completed_mission_id_for_display') == current_mission_id:
         
-        if current_mission_id < len(MISSIONS): 
-            session['current_mission_id'] = current_mission_id + 1
+        current_mission_index = -1
+        for i, mission in enumerate(all_missions_db):
+            if mission.id == current_mission_id:
+                current_mission_index = i
+                break
+        
+        if current_mission_index != -1 and current_mission_index < len(all_missions_db) - 1:
+            next_mission_db = all_missions_db[current_mission_index + 1]
+            session['current_mission_id'] = next_mission_db.id
             flash("Nueva directiva recibida.", "info")
         else: 
-            session['current_mission_id'] = current_mission_id + 1 
+            last_id = all_missions_db[-1].id if all_missions_db else 0
+            session['current_mission_id'] = last_id + 1 
             flash("Todas las directivas han sido completadas. Evaluación finalizada.", "success")
     else:
         flash("Complete la directiva actual antes de continuar.", "warning")
@@ -234,7 +287,7 @@ def next_mission():
 
 @main_views.route('/reset_progress')
 def reset_progress():
-    session.pop('current_mission_id', None)
+    session.pop('current_mission_id', None) 
     session.pop('archived_findings', None) 
     session.pop('mission_completed_show_results', None)
     session.pop('query_results', None)
@@ -243,100 +296,73 @@ def reset_progress():
     session.pop('last_query', None)
     session.pop('completed_mission_id_for_display', None)
     
-    flash("Progreso de la simulación reiniciado. Volviendo a la primera directiva.", "info")
+    flash("Progreso de la simulación reiniciado.", "info")
     return redirect(url_for('main_views.landing_page'))
 
 # --- Rutas del Panel de Administrador ---
 @main_views.route('/admin', methods=['GET'])
 def admin_panel():
-    """Muestra el panel de creación y gestión de misiones."""
-    # Aquí podrías pasar datos existentes si estás editando una misión, etc.
     return render_template('admin_panel.html')
 
 @main_views.route('/admin/execute_setup_sql', methods=['POST'])
 def admin_execute_setup_sql():
-    """Ejecuta el SQL de configuración y devuelve el resultado."""
     data = request.get_json()
-    setup_sql_script = data.get('setup_sql', '')
+    setup_sql_script_text = data.get('setup_sql', '')
     
-    # Dividir el script en sentencias individuales (manejar punto y coma y saltos de línea)
-    # Una forma simple es asumir que cada sentencia está separada por ; o es una línea no vacía.
-    # Para mayor robustez, se podría usar una librería de parsing SQL, pero esto es un inicio.
-    statements = [s.strip() for s in setup_sql_script.split(';') if s.strip()]
-    if not statements and setup_sql_script.strip(): # Si no hay ; pero hay contenido, tomarlo como una sola sentencia
-        statements = [setup_sql_script.strip()]
+    statements = [s.strip() for s in setup_sql_script_text.split(';') if s.strip()]
+    if not statements and setup_sql_script_text.strip():
+        statements = [s.strip() for s in setup_sql_script_text.splitlines() if s.strip()]
     
     if not statements:
         return jsonify({'error': 'No se proporcionaron sentencias SQL para ejecutar.'}), 400
-
-    # Es CRUCIAL que esta ejecución sea en una sesión/transacción separada
-    # o en una base de datos de prueba para no afectar la BD principal del juego
-    # si el admin está probando. Para este ejemplo, usaremos la sesión actual,
-    # pero en un sistema real, se necesitaría más aislamiento.
     try:
-        # Aquí, en lugar de usar execute_sql_script directamente que hace commit,
-        # podríamos querer probar sin commit o manejarlo con cuidado.
-        # Por ahora, para simplicidad, lo usamos.
-        # En un entorno real, el setup_sql del admin podría correr en una BD temporal.
-        # O, si es la misma BD, asegurarse de que los DROPs y CREATEs sean seguros.
-        
-        # Para probar, podríamos querer limpiar tablas antes.
-        # Esta es una simplificación. Una BD de prueba sería mejor.
-        # db.session.execute(text("DROP TABLE IF EXISTS temp_test_table;")) # Ejemplo
-        
-        execute_sql_script(db.session, statements) # Esto hace commit
+        with current_app.app_context():
+            execute_sql_script(db.session, statements)
         return jsonify({'message': f'{len(statements)} sentencia(s) de configuración ejecutada(s) con éxito.'})
     except Exception as e:
-        db.session.rollback() # Asegurar rollback si execute_sql_script no lo hizo o falló antes
         return jsonify({'error': f'Error al ejecutar SQL de configuración: {str(e)}'}), 500
-
 
 @main_views.route('/admin/execute_correct_query', methods=['POST'])
 def admin_execute_correct_query():
-    """Ejecuta el SQL de configuración y luego la consulta correcta."""
     data = request.get_json()
     correct_query = data.get('correct_query', '')
-    setup_sql_script = data.get('setup_sql', '') # Recibir el setup_sql para preparar el entorno
+    setup_sql_script_text = data.get('setup_sql', '')
 
     if not correct_query:
         return jsonify({'error': 'No se proporcionó la consulta correcta.'}), 400
     
-    if not correct_query.strip().upper().startswith("SELECT"):
-        return jsonify({'error': 'La "Consulta Correcta" debe ser una sentencia SELECT.'}), 400
+    query_upper = correct_query.strip().upper()
+    if not (query_upper.startswith("SELECT") or query_upper.startswith("WITH")):
+        return jsonify({'error': 'La "Consulta Correcta" debe ser una sentencia SELECT o comenzar con WITH.'}), 400
 
-    setup_statements = [s.strip() for s in setup_sql_script.split(';') if s.strip()]
-    if not setup_statements and setup_sql_script.strip():
-        setup_statements = [setup_sql_script.strip()]
-
+    setup_statements = [s.strip() for s in setup_sql_script_text.split(';') if s.strip()]
+    if not setup_statements and setup_sql_script_text.strip():
+        setup_statements = [s.strip() for s in setup_sql_script_text.splitlines() if s.strip()]
     try:
-        # 1. Ejecutar el setup_sql para preparar el entorno de prueba
-        if setup_statements:
-            print(f"Admin: Ejecutando setup_sql ANTES de la consulta correcta: {len(setup_statements)} sentencias.")
-            execute_sql_script(db.session, setup_statements) # Esto hace commit
-        else:
-            print("Admin: No hay setup_sql para ejecutar antes de la consulta correcta.")
+        with current_app.app_context():
+            if setup_statements:
+                print(f"Admin: Ejecutando setup_sql ANTES de la consulta correcta: {len(setup_statements)} sentencias.")
+                execute_sql_script(db.session, setup_statements)
+            else:
+                print("Admin: No hay setup_sql para ejecutar antes de la consulta correcta.")
 
-
-        # 2. Ejecutar la consulta correcta
-        print(f"Admin: Ejecutando consulta correcta: {correct_query}")
-        result_proxy = db.session.execute(text(correct_query))
-        
-        if result_proxy.returns_rows:
-            columns = list(result_proxy.keys())
-            results = [dict(row._mapping) for row in result_proxy.fetchall()]
-            db.session.commit() # Para cerrar la transacción SELECT
-            return jsonify({'results': results, 'columns': columns})
-        else:
-            db.session.commit() # Para DML/DDL si se permitieran (aunque aquí se espera SELECT)
-            return jsonify({'message': 'La consulta correcta se ejecutó pero no devolvió filas (o no era SELECT).'}), 200
-
+            print(f"Admin: Ejecutando consulta correcta: {correct_query}")
+            result_proxy = db.session.execute(text(correct_query))
+            
+            if result_proxy.returns_rows:
+                columns = list(result_proxy.keys())
+                results = [dict(row._mapping) for row in result_proxy.fetchall()]
+                db.session.commit() 
+                return jsonify({'results': results, 'columns': columns})
+            else:
+                db.session.commit() 
+                return jsonify({'message': 'La consulta correcta se ejecutó pero no devolvió filas.'}), 200
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error al ejecutar la consulta correcta: {str(e)}'}), 500
 
 @main_views.route('/admin/save_mission', methods=['POST'])
 def save_mission():
-    """Guarda la nueva misión (placeholder)."""
     try:
         mission_id = request.form.get('mission_id', type=int)
         mission_title = request.form.get('mission_title')
@@ -345,70 +371,60 @@ def save_mission():
         mission_hint = request.form.get('mission_hint')
         mission_success_message = request.form.get('mission_success_message')
         
-        setup_sql_script = request.form.get('setup_sql')
+        setup_sql_script_text = request.form.get('setup_sql') 
         correct_query_script = request.form.get('correct_query')
         
-        # Las opciones de evaluación vienen como 'on' o None si son checkboxes
         order_matters = request.form.get('order_matters') == 'true'
         column_order_matters = request.form.get('column_order_matters') == 'true'
         check_column_names = request.form.get('check_column_names') == 'true'
 
-        if not all([mission_id, mission_title, mission_subject, mission_body, mission_success_message, setup_sql_script, correct_query_script]):
-            flash("Todos los campos principales de la misión son obligatorios.", "error")
+        if not all([mission_id is not None, mission_title, mission_subject, mission_body, mission_success_message, setup_sql_script_text, correct_query_script]):
+            flash("Todos los campos principales de la misión son obligatorios (ID, Título, Asunto, Cuerpo, Mensaje Éxito, Setup SQL, Correct Query).", "error")
             return redirect(url_for('main_views.admin_panel'))
 
-        # Convertir setup_sql a lista de sentencias
-        setup_sql_list = [s.strip() for s in setup_sql_script.split(';') if s.strip()]
-        if not setup_sql_list and setup_sql_script.strip():
-             setup_sql_list = [setup_sql_script.strip()]
-
-
-        new_mission_data = {
-            "id": mission_id,
-            "title": mission_title,
-            "coordinator_message_subject": mission_subject,
-            "coordinator_message_body": mission_body,
-            "setup_sql": setup_sql_list,
-            "correct_query": correct_query_script,
-            "evaluation_options": {
-                'order_matters': order_matters,
-                'column_order_matters': column_order_matters,
-                'check_column_names': check_column_names
-            },
-            "hint": mission_hint,
-            "success_message": mission_success_message
+        evaluation_options_dict = {
+            'order_matters': order_matters,
+            'column_order_matters': column_order_matters,
+            'check_column_names': check_column_names
         }
 
-        # Lógica para guardar la misión:
-        # Opción 1: Si MISSIONS está en config.py, tendrías que modificar el archivo (no ideal para producción).
-        # Opción 2: Si las misiones se guardan en una base de datos (ej. tabla MissionDefinitionDB),
-        #           aquí crearías/actualizarías un registro en esa tabla.
+        with current_app.app_context():
+            existing_mission = MissionDefinitionDB.query.get(mission_id)
+            if existing_mission: 
+                existing_mission.title = mission_title
+                existing_mission.coordinator_message_subject = mission_subject
+                existing_mission.coordinator_message_body = mission_body
+                existing_mission.setup_sql_script = setup_sql_script_text 
+                existing_mission.correct_query_script = correct_query_script
+                existing_mission.evaluation_options_json = json.dumps(evaluation_options_dict)
+                existing_mission.hint = mission_hint
+                existing_mission.success_message = mission_success_message
+                existing_mission.is_active = True 
+                db.session.commit()
+                flash(f"Misión ID {mission_id} actualizada exitosamente en la base de datos.", "success")
+            else: 
+                new_mission_db = MissionDefinitionDB(
+                    id=mission_id,
+                    title=mission_title,
+                    coordinator_message_subject=mission_subject,
+                    coordinator_message_body=mission_body,
+                    setup_sql_script=setup_sql_script_text, 
+                    correct_query_script=correct_query_script,
+                    evaluation_options_json=json.dumps(evaluation_options_dict),
+                    hint=mission_hint,
+                    success_message=mission_success_message,
+                    is_active=True
+                )
+                db.session.add(new_mission_db)
+                db.session.commit()
+                flash(f"Misión ID {mission_id} guardada exitosamente en la base de datos.", "success")
         
-        # Placeholder: Imprimir los datos y mostrar mensaje de éxito.
-        print("Nueva misión para guardar:")
-        import json
-        print(json.dumps(new_mission_data, indent=2))
-        
-        # Simulación de guardado (añadir a la lista en memoria MISSIONS si es para prueba)
-        # ¡¡¡ADVERTENCIA: Esto solo modifica la lista en memoria, no el archivo config.py!!!
-        # Para persistencia real, necesitas guardar en un archivo o base de datos.
-        
-        # Verificar si el ID ya existe
-        existing_mission = next((m for m in MISSIONS if m['id'] == mission_id), None)
-        if existing_mission:
-            # Actualizar misión existente (en memoria)
-            MISSIONS[MISSIONS.index(existing_mission)] = new_mission_data
-            flash(f"Misión ID {mission_id} actualizada en memoria con éxito.", "success")
-        else:
-            # Añadir nueva misión (en memoria)
-            MISSIONS.append(new_mission_data)
-            # Reordenar por ID para consistencia si se desea
-            MISSIONS.sort(key=lambda m: m['id'])
-            flash(f"Misión ID {mission_id} añadida en memoria con éxito.", "success")
-        
-        # print("MISSIONS actuales en memoria:", MISSIONS)
-
+    except exc.IntegrityError as e: 
+        db.session.rollback()
+        flash(f"Error de integridad al guardar la misión (ej. ID de misión ya existe): {str(e.orig)}", "error")
+        print(f"Error de integridad en save_mission: {e}", exc_info=True)
     except Exception as e:
+        db.session.rollback() 
         flash(f"Error al procesar el formulario de la misión: {str(e)}", "error")
         print(f"Error en save_mission: {e}", exc_info=True)
 
