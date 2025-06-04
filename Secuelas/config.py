@@ -1,6 +1,7 @@
+# Secuelas/config.py
 import datetime
 
-# --- Datos Iniciales y Misiones ---
+# --- Definiciones de Misiones ---
 MISSIONS = [
     {
         "id": 1,
@@ -11,15 +12,26 @@ MISSIONS = [
             "Su primera directiva es familiarizarse con el personal asignado a esta Unidad.\n"
             "Presente un listado completo de todos los empleados de la 'Unidad de Escrutinio Informativo'."
         ),
-        "expected_table": "employees",
-        "solution_check": lambda results: (
-            results is not None and
-            len(results) == 2 and
-            all(row['department'] == 'Unidad de Escrutinio Informativo' for row in results) and
-            any(row['name'] == 'Analista 734 (Usted)' for row in results) and
-            any(row['name'] == 'Supervisor Nex' for row in results)
-        ),
-        "hint": "Utilice SELECT para obtener columnas, FROM para especificar la tabla 'employees', y WHERE para filtrar por el departamento 'Unidad de Escrutinio Informativo'.",
+        # setup_sql se encarga de crear el esquema y los datos necesarios para ESTA misión.
+        # Debería ser idempotente o limpiar tablas existentes si es necesario.
+        "setup_sql": [
+            "DROP TABLE IF EXISTS employees;",
+            "DROP TABLE IF EXISTS documents;",
+            "DROP TABLE IF EXISTS document_access_logs;",
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, department TEXT, position TEXT, security_clearance INTEGER, hire_date TEXT);",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (1, 'Analista 734 (Usted)', 'Unidad de Escrutinio Informativo', 'Analista de Datos Jr.', 2, '2025-05-10');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (2, 'Supervisor Nex', 'Unidad de Escrutinio Informativo', 'Supervisor de Analistas', 3, '2023-02-15');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (3, 'Agente Externo K', 'Consultores Externos', 'Especialista en Seguridad de Datos', 4, '2024-11-01');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (4, 'Director General Umbra', 'Alta Dirección', 'Director General', 5, '2010-01-05');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (5, 'Técnico de Archivos Rho', 'Archivo Central', 'Archivista Principal', 2, '2018-07-22');"
+        ],
+        "correct_query": "SELECT id, name, department, position, security_clearance, hire_date FROM employees WHERE department = 'Unidad de Escrutinio Informativo' ORDER BY id ASC;",
+        "evaluation_options": {
+            'order_matters': True,          # El orden de las filas importa
+            'column_order_matters': True,   # El orden de las columnas importa
+            'check_column_names': True      # Los nombres de las columnas deben coincidir
+        },
+        "hint": "Utilice SELECT para obtener columnas, FROM para especificar la tabla 'employees', y WHERE para filtrar por el departamento 'Unidad de Escrutinio Informativo'. Ordene por 'id'.",
         "success_message": "Registro aceptado. Su familiarización inicial ha sido procesada."
     },
     {
@@ -30,44 +42,68 @@ MISSIONS = [
             "Analista, se requiere una verificación urgente de las credenciales del empleado con ID 2.\n"
             "Extraiga y presente el registro completo de dicho individuo."
         ),
-        "expected_table": "employees",
-        "solution_check": lambda results: (
-            results is not None and
-            len(results) == 1 and
-            results[0]['id'] == 2 and
-            results[0]['name'] == 'Supervisor Nex'
-        ),
-        "hint": "Necesitará seleccionar todas las columnas (*) de la tabla 'employees' donde el 'id' sea igual a 2.",
+        "setup_sql": [ # Mismo setup que la misión 1 para este ejemplo.
+                       # En un escenario real, podrías tener setups diferentes o incrementales.
+            "DROP TABLE IF EXISTS employees;",
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, department TEXT, position TEXT, security_clearance INTEGER, hire_date TEXT);",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (1, 'Analista 734 (Usted)', 'Unidad de Escrutinio Informativo', 'Analista de Datos Jr.', 2, '2025-05-10');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (2, 'Supervisor Nex', 'Unidad de Escrutinio Informativo', 'Supervisor de Analistas', 3, '2023-02-15');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (3, 'Agente Externo K', 'Consultores Externos', 'Especialista en Seguridad de Datos', 4, '2024-11-01');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (4, 'Director General Umbra', 'Alta Dirección', 'Director General', 5, '2010-01-05');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (5, 'Técnico de Archivos Rho', 'Archivo Central', 'Archivista Principal', 2, '2018-07-22');"
+        ],
+        # Se espera que el usuario seleccione todas las columnas.
+        "correct_query": "SELECT id, name, department, position, security_clearance, hire_date FROM employees WHERE id = 2;",
+        "evaluation_options": {
+            'order_matters': True, # Solo una fila, así que el orden de filas es trivialmente verdadero
+            'column_order_matters': True, # Para asegurar que seleccionen las columnas en el orden esperado o todas.
+            'check_column_names': True
+        },
+        "hint": "Necesitará seleccionar todas las columnas de la tabla 'employees' donde el 'id' sea igual a 2.",
         "success_message": "Datos del empleado ID 2 verificados y archivados. Proceda."
     },
-      {
+    {
         "id": 3,
         "title": "Auditoría de Acceso a Documentos Sensibles",
         "coordinator_message_subject": "Alerta de Seguridad Temporal – Revisión de Bitácora",
         "coordinator_message_body": (
             "Analista, se ha detectado una fluctuación anómala en los protocolos de acceso a documentos clasificados.\n"
             "Su tarea es auditar la bitácora 'document_access_logs'.\n"
-            "Identifique y reporte todos los accesos al documento 'PROYECTO_QUIMERA' que hayan ocurrido después de las 10:00:00 del 2025-05-19.\n"
+            "Identifique y reporte todos los accesos al documento con token 'PROYECTO_QUIMERA' que hayan ocurrido después de las '2025-05-19 10:00:00'.\n"
             "Preste atención a cualquier detalle inusual."
         ),
-        "expected_table": "document_access_logs",
-        "solution_check": lambda results: (
-            len(results) >= 1 and  # Debe haber al menos un resultado esperado
-            # CONDICIÓN PRINCIPAL: Todos los resultados deben ser de PROYECTO_QUIMERA y cumplir la fecha
-            all(
-                r.get('document_token_fk') == 'PROYECTO_QUIMERA' and
-                (
-                    datetime.datetime.strptime(str(r.get('access_timestamp')).split('.')[0], '%Y-%m-%d %H:%M:%S')
-                    if isinstance(r.get('access_timestamp'), (str, datetime.datetime))
-                    else datetime.datetime.min
-                ) > datetime.datetime(2025, 5, 19, 10, 0, 0)
-                for r in results
-            )
-        ),
-        "hint": "Consulte la tabla 'document_access_logs'. Filtre por la columna 'document_token_fk' para el documento y por 'access_timestamp' para la fecha/hora. Recuerde que las fechas y horas deben compararse cuidadosamente (formato 'YYYY-MM-DD HH:MM:SS').", # <--- PISTA ACTUALIZADA
-        "success_message": "Registros de acceso para 'PROYECTO_QUIMERA' compilados. Su diligencia es anotada. Una entrada parece... peculiar. Archive este hallazgo para referencia futura."
+        "setup_sql": [
+            "DROP TABLE IF EXISTS employees;",
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, department TEXT, position TEXT, security_clearance INTEGER, hire_date TEXT);",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (1, 'Analista 734 (Usted)', 'Unidad de Escrutinio Informativo', 'Analista de Datos Jr.', 2, '2025-05-10');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (2, 'Supervisor Nex', 'Unidad de Escrutinio Informativo', 'Supervisor de Analistas', 3, '2023-02-15');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (3, 'Agente Externo K', 'Consultores Externos', 'Especialista en Seguridad de Datos', 4, '2024-11-01');",
+            
+            "DROP TABLE IF EXISTS documents;",
+            "CREATE TABLE documents (id INTEGER PRIMARY KEY AUTOINCREMENT, document_token TEXT UNIQUE NOT NULL, title TEXT, classification_level INTEGER, creation_date TEXT);",
+            "INSERT INTO documents (document_token, title, classification_level, creation_date) VALUES ('MANUAL_UEI_001', 'Manual de Orientación UEI', 1, '2025-01-10 00:00:00');",
+            "INSERT INTO documents (document_token, title, classification_level, creation_date) VALUES ('PROYECTO_QUIMERA', 'Proyecto Quimera - Ultrasecreto', 5, '2024-06-15 00:00:00');",
+            "INSERT INTO documents (document_token, title, classification_level, creation_date) VALUES ('REGISTRO_HISTORICO_77B', 'Registro Histórico 77B', 4, '2023-03-22 00:00:00');",
+
+            "DROP TABLE IF EXISTS document_access_logs;",
+            "CREATE TABLE document_access_logs (log_id INTEGER PRIMARY KEY AUTOINCREMENT, employee_id INTEGER, document_token_fk TEXT, access_timestamp TEXT, action TEXT, remarks TEXT, FOREIGN KEY (employee_id) REFERENCES employees(id), FOREIGN KEY (document_token_fk) REFERENCES documents(document_token));",
+            "INSERT INTO document_access_logs (employee_id, document_token_fk, access_timestamp, action, remarks) VALUES (1, 'MANUAL_UEI_001', '2025-05-19 09:15:00', 'VIEW', 'Acceso estándar de orientación.');",
+            "INSERT INTO document_access_logs (employee_id, document_token_fk, access_timestamp, action, remarks) VALUES (2, 'PROYECTO_QUIMERA', '2025-05-19 09:30:00', 'VIEW', 'Revisión de Supervisor.');", # Antes de las 10:00
+            "INSERT INTO document_access_logs (employee_id, document_token_fk, access_timestamp, action, remarks) VALUES (3, 'PROYECTO_QUIMERA', '2025-05-19 11:05:30', 'CLASSIFIED_VIEW', 'Acceso no programado. Requiere seguimiento.');", # Después de las 10:00
+            "INSERT INTO document_access_logs (employee_id, document_token_fk, access_timestamp, action, remarks) VALUES (1, 'PROYECTO_QUIMERA', '2025-05-19 14:20:00', 'VIEW', 'Acceso autorizado para tarea de auditoría.');" # Después de las 10:00
+        ],
+        "correct_query": "SELECT log_id, employee_id, document_token_fk, access_timestamp, action, remarks FROM document_access_logs WHERE document_token_fk = 'PROYECTO_QUIMERA' AND access_timestamp > '2025-05-19 10:00:00' ORDER BY log_id ASC;",
+        "evaluation_options": {
+            'order_matters': True,
+            'column_order_matters': True,
+            'check_column_names': True
+        },
+        "hint": "Consulte 'document_access_logs'. Filtre por 'document_token_fk' y 'access_timestamp'. Recuerde que las fechas/horas se comparan como texto en SQLite si no se usa formato ISO8601 completo o funciones de fecha.",
+        "success_message": "Registros de acceso para 'PROYECTO_QUIMERA' compilados. Su diligencia es anotada."
     },
-     {
+    # Agrega aquí el resto de las misiones, adaptándolas a esta nueva estructura.
+    # Por ejemplo, Misión 4:
+    {
         "id": 4,
         "title": "El Contacto Misterioso",
         "coordinator_message_subject": "Mensaje Interceptado - Canal Seguro 7",
@@ -78,70 +114,22 @@ MISSIONS = [
             "Busque en los registros de empleados a aquellos con un nivel de autorización de seguridad ('security_clearance') superior a 3. "
             "No todos los que vigilan son guardianes de la verdad. Tenga cuidado.'"
         ),
-        "expected_table": "employees",
-        "solution_check": lambda results: (
-            results is not None and
-            len(results) == 1 and
-            results[0]['name'] == 'Director General Umbra' and
-            results[0]['security_clearance'] == 5
-        ),
-        "hint": "Consulte la tabla 'employees'. Filtre por la columna 'security_clearance' para valores mayores a 3. Puede que necesite ser más específico para aislar al individuo correcto si hay varios con alta autorización.",
+        "setup_sql": [ # Reutilizamos el setup de empleados de la misión 1
+            "DROP TABLE IF EXISTS employees;",
+            "CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, department TEXT, position TEXT, security_clearance INTEGER, hire_date TEXT);",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (1, 'Analista 734 (Usted)', 'Unidad de Escrutinio Informativo', 'Analista de Datos Jr.', 2, '2025-05-10');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (2, 'Supervisor Nex', 'Unidad de Escrutinio Informativo', 'Supervisor de Analistas', 3, '2023-02-15');",
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (3, 'Agente Externo K', 'Consultores Externos', 'Especialista en Seguridad de Datos', 4, '2024-11-01');", # Clearance 4
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (4, 'Director General Umbra', 'Alta Dirección', 'Director General', 5, '2010-01-05');",      # Clearance 5
+            "INSERT INTO employees (id, name, department, position, security_clearance, hire_date) VALUES (5, 'Técnico de Archivos Rho', 'Archivo Central', 'Archivista Principal', 2, '2018-07-22');"
+        ],
+        "correct_query": "SELECT id, name, department, position, security_clearance, hire_date FROM employees WHERE security_clearance > 3 ORDER BY id ASC;",
+        "evaluation_options": {
+            'order_matters': True,
+            'column_order_matters': True,
+            'check_column_names': True
+        },
+        "hint": "Consulte la tabla 'employees'. Filtre por la columna 'security_clearance' para valores mayores a 3. Ordene por 'id'.",
         "success_message": "Información obtenida. La discreción es su mejor aliada. Mantenga estos datos en reserva."
-    },
-    # En config.py
-# ... (Misiones 1 a 4 permanecen con pequeños ajustes si es necesario) ...
-
-# Ejemplo para la misión 3 (solo para ilustrar que el document_id ahora es un token):
-# La lambda solution_check para la misión 3 debería seguir funcionando
-# ya que accede a row['document_id'] (que ahora es document_token_fk en la DB pero SQLAlchemy podría mapearlo así o
-# deberías usar row['document_token_fk']). Verifica esto en tus resultados.
-# Si usas dict(zip(column_names, row)), el nombre de la columna será 'document_token_fk'.
-# Por lo tanto, la comprobación para la misión 3 debería ser:
-# any(row['document_token_fk'] == 'PROYECTO_QUIMERA' and ...
-# y expected_table seguiría siendo "document_access_logs"
-
-# Misión 5 (REDISEÑADA - Ejemplo)
-    {
-        "id": 5,
-        "title": "Investigación de Documento Específico",
-        "coordinator_message_subject": "Solicitud de Detalles: MANUAL_UEI_001",
-        "coordinator_message_body": (
-            "Analista, necesitamos que recupere toda la información disponible sobre el documento con el token 'MANUAL_UEI_001'.\n"
-            "Presente todos sus atributos registrados en la base de datos de documentos."
-        ),
-        "expected_table": "documents", # Ahora buscamos en la tabla 'documents'
-        "solution_check": lambda results: (
-            results is not None and
-            len(results) == 1 and
-            results[0]['document_token'] == 'MANUAL_UEI_001' and
-            'title' in results[0] and 
-            'description' in results[0] # Verificar que otros campos esperados estén presentes
-        ),
-        "hint": "Consulte la tabla 'documents'. Filtre por la columna 'document_token'. Seleccione todas las columnas para ver todos los atributos.",
-        "success_message": "Información del documento 'MANUAL_UEI_001' recuperada y archivada. Buen trabajo."
-    },
-    # En config.py, después de la misión 5 o donde corresponda
-
-    {
-        "id": 6, # Siguiente ID disponible
-        "title": "Auditoría Cruzada: Accesos a 'PROYECTO_QUIMERA'",
-        "coordinator_message_subject": "Directiva de Auditoría Avanzada XR-003",
-        "coordinator_message_body": (
-            "Analista, se requiere un análisis más profundo de los accesos al 'PROYECTO_QUIMERA'.\n"
-            "Presente un informe que liste el nombre del empleado, su cargo, y la fecha y hora del acceso para todos los registros relacionados con 'PROYECTO_QUIMERA'.\n"
-            "Necesitamos cruzar información de las tablas de empleados y los registros de acceso a documentos."
-        ),
-        "expected_table": "employees, document_access_logs, documents", # Tablas involucradas
-        "solution_check": lambda results: (
-            results is not None and
-            len(results) >= 3 and # Basado en tus datos de siembra para PROYECTO_QUIMERA
-            all('name' in row and 'position' in row and 'access_timestamp' in row for row in results) and
-            # Verificar que los datos sean consistentes con un JOIN exitoso
-            # (Esta es una comprobación simplificada, podrías hacerla más robusta)
-            any(row['name'] == 'Supervisor Nex' for row in results) and
-            any(row['name'] == 'Agente Externo K' for row in results)
-        ),
-        "hint": "Utilice JOIN (o INNER JOIN) para combinar 'employees' con 'document_access_logs' usando 'employees.id' y 'document_access_logs.employee_id'. Luego, filtre los resultados donde 'document_access_logs.document_token_fk' sea 'PROYECTO_QUIMERA'. Seleccione 'employees.name', 'employees.position', y 'document_access_logs.access_timestamp'.",
-        "success_message": "Informe de auditoría cruzada para 'PROYECTO_QUIMERA' completado. Las conexiones se están volviendo más claras."
     }
 ]

@@ -1,67 +1,79 @@
+# Secuelas/init_db.py
+from sqlalchemy import text, exc
 from extensions import db
-import models # Importar para que SQLAlchemy conozca los modelos para db.create_all()
-import datetime # Necesario para los datos iniciales de Employee y DocumentAccessLog
+# No se necesita importar 'models' aquí si setup_sql crea las tablas.
+# No se necesita 'datetime' aquí.
 
-def initialize_database(app_context):
+def execute_sql_script(db_session, sql_statements):
+    """Ejecuta una lista de sentencias SQL dentro de la sesión dada."""
+    if not sql_statements:
+        print("execute_sql_script: No hay sentencias SQL para ejecutar.")
+        return
+    for stmt_index, stmt in enumerate(sql_statements):
+        if stmt and stmt.strip():  # Asegurar que no esté vacía
+            try:
+                print(f"execute_sql_script: Ejecutando stmt {stmt_index + 1}/{len(sql_statements)}: {stmt[:100]}...")
+                db_session.execute(text(stmt))
+            except exc.SQLAlchemyError as e: # Captura errores específicos de SQLAlchemy/DB
+                print(f"Error ejecutando SQL de configuración: {stmt} - {e}")
+                db_session.rollback() # Importante revertir en caso de error en una transacción
+                raise  # Re-lanzar para señalar el fallo de configuración al llamador
+            except Exception as e: # Captura otros posibles errores
+                print(f"Error inesperado ejecutando SQL de configuración: {stmt} - {e}")
+                db_session.rollback()
+                raise
+    try:
+        db_session.commit() # Commit al final si todas las sentencias fueron exitosas
+        print("execute_sql_script: Commit exitoso de las sentencias SQL.")
+    except exc.SQLAlchemyError as e:
+        print(f"Error haciendo commit de las sentencias SQL: {e}")
+        db_session.rollback()
+        raise
+    except Exception as e:
+        print(f"Error inesperado haciendo commit de las sentencias SQL: {e}")
+        db_session.rollback()
+        raise
+
+
+def initialize_first_mission_db(app_context):
     """
-    Crea las tablas de la base de datos y siembra los datos iniciales
-    si las tablas están vacías. Se ejecuta dentro del contexto de la aplicación.
+    Configura la base de datos para la primera misión o un estado por defecto.
+    Esto reemplaza la siembra de datos anterior.
     """
-    with app_context.app_context(): # Asegura que las operaciones de BD se hagan con el contexto correcto
-        print("initialize_database: Creando todas las tablas...")
-        db.create_all()
-        print("initialize_database: Tablas creadas (o ya existían).")
+    # Importar MISSIONS aquí para evitar dependencia circular en la carga del módulo
+    from config import MISSIONS
+    
+    # Asegura que las operaciones de BD se hagan con el contexto correcto de la aplicación
+    with app_context.app_context():
+        print("initialize_first_mission_db: Configurando base de datos para la primera misión...")
+        
+        # Opcional: Crear todas las tablas definidas en models.py si son necesarias como base
+        # para la aplicación (ej. tablas de usuarios, progreso) antes de que setup_sql de la misión
+        # cree/modifique tablas específicas del juego.
+        # Si setup_sql es completamente autocontenido (DROP/CREATE), esto podría no ser necesario
+        # para las tablas del juego, pero sí para las tablas de la aplicación.
+        # print("initialize_first_mission_db: Creando tablas base de la aplicación (si están definidas en models.py)...")
+        # db.create_all() # Descomentar si tienes modelos para usuarios, etc., que deben existir.
+        # print("initialize_first_mission_db: Tablas base creadas.")
 
-        # Sembrar datos para Empleados si la tabla está vacía
-        if not models.Employee.query.first():
-            print("initialize_database: Sembrando empleados...")
-            employees_data = [
-                models.Employee(id=1, name="Analista 734 (Usted)", department="Unidad de Escrutinio Informativo", position="Analista de Datos Jr.", security_clearance=2, hire_date=datetime.date(2025, 5, 10)),
-                models.Employee(id=2, name="Supervisor Nex", department="Unidad de Escrutinio Informativo", position="Supervisor de Analistas", security_clearance=3, hire_date=datetime.date(2023, 2, 15)),
-                models.Employee(id=3, name="Agente Externo K", department="Consultores Externos", position="Especialista en Seguridad de Datos", security_clearance=4, hire_date=datetime.date(2024, 11, 1)),
-                models.Employee(id=4, name="Director General Umbra", department="Alta Dirección", position="Director General", security_clearance=5, hire_date=datetime.date(2010, 1, 5)),
-                models.Employee(id=5, name="Técnico de Archivos Rho", department="Archivo Central", position="Archivista Principal", security_clearance=2, hire_date=datetime.date(2018, 7, 22)),
-            ]
-            db.session.bulk_save_objects(employees_data)
-            db.session.commit()
-            print("initialize_database: Empleados sembrados.")
+        if MISSIONS:
+            # Asumimos que la primera misión tiene id=1 o es la primera en la lista.
+            first_mission = next((m for m in MISSIONS if m['id'] == 1), None)
+            if not first_mission and MISSIONS: # Si no hay id=1, tomar la primera
+                first_mission = MISSIONS[0]
+
+            if first_mission and 'setup_sql' in first_mission:
+                try:
+                    print(f"initialize_first_mission_db: Ejecutando setup_sql para Misión ID: {first_mission['id']}...")
+                    execute_sql_script(db.session, first_mission['setup_sql'])
+                    print(f"initialize_first_mission_db: Base de datos configurada para la Misión {first_mission['id']}.")
+                except Exception as e:
+                    print(f"initialize_first_mission_db: Error configurando la base de datos para la primera misión: {e}")
+                    # Podrías querer que la aplicación no inicie si esto falla.
+            elif first_mission:
+                print(f"initialize_first_mission_db: La primera misión (ID: {first_mission['id']}) no tiene 'setup_sql'. Se asume que la BD está lista o no requiere setup inicial específico para el juego.")
+            else: # No first_mission
+                print("initialize_first_mission_db: No se encontró la primera misión en config.py.")
         else:
-            print("initialize_database: Empleados ya existen, no se siembran.")
-
-          # NUEVO: Sembrar datos para Documentos si la tabla está vacía
-        if not models.Document.query.first():
-            print("initialize_database: Sembrando documentos...")
-            documents_data = [
-                models.Document(document_token="MANUAL_UEI_001", title="Manual de Orientación UEI", description="Procedimientos estándar y directivas para nuevos analistas.", classification_level=1, creation_date=datetime.datetime(2025, 1, 10)),
-                models.Document(document_token="PROYECTO_QUIMERA", title="Proyecto Quimera - Ultrasecreto", description="Investigación y Desarrollo - Fase Preliminar.", classification_level=5, creation_date=datetime.datetime(2024, 6, 15)),
-                models.Document(document_token="REGISTRO_HISTORICO_77B", title="Registro Histórico 77B - Archivos Clasificados", description="Incidente de seguridad, sector Gamma-7.", classification_level=4, creation_date=datetime.datetime(2023, 3, 22)),
-                models.Document(document_token="PROTOCOLO_EVAC_ALFA", title="Protocolo de Evacuación Alfa", description="Procedimientos de emergencia para el Sitio Alfa.", classification_level=3, creation_date=datetime.datetime(2025, 2, 1))
-            ]
-            db.session.bulk_save_objects(documents_data)
-            db.session.commit()
-            print("initialize_database: Documentos sembrados.")
-        else:
-            print("initialize_database: Documentos ya existen, no se siembran.")
-
-        # Sembrar datos para DocumentAccessLog (ACTUALIZADO)
-        if not models.DocumentAccessLog.query.first():
-            print("initialize_database: Sembrando logs de acceso...")
-            # Asegúrate de que los employee_id existen y los document_token_fk coinciden con los tokens en la tabla 'documents'
-            access_logs_data = [
-                models.DocumentAccessLog(employee_id=1, document_token_fk="MANUAL_UEI_001", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 15, 0), remarks="Acceso estándar de orientación."),
-                models.DocumentAccessLog(employee_id=2, document_token_fk="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 30, 0), remarks="Revisión de Supervisor."),
-                models.DocumentAccessLog(employee_id=5, document_token_fk="REGISTRO_HISTORICO_77B", action="ARCHIVE_VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 9, 45, 0)), # Cambié 'ARCHIVE' a 'ARCHIVE_VIEW' por claridad
-                models.DocumentAccessLog(employee_id=3, document_token_fk="PROYECTO_QUIMERA", action="CLASSIFIED_VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 11, 5, 30), remarks="Acceso no programado. Requiere seguimiento."),
-                models.DocumentAccessLog(employee_id=1, document_token_fk="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 19, 14, 20, 0), remarks="Acceso autorizado para tarea de auditoría."),
-                models.DocumentAccessLog(employee_id=4, document_token_fk="PROYECTO_QUIMERA", action="VIEW", access_timestamp=datetime.datetime(2025, 5, 18, 17, 0, 0), remarks="Revisión Directiva."),
-                models.DocumentAccessLog(employee_id=2, document_token_fk="PROTOCOLO_EVAC_ALFA", action="REVIEW", access_timestamp=datetime.datetime(2025, 5, 20, 10, 0, 0), remarks="Revisión de protocolo de seguridad.")
-            ]
-            db.session.bulk_save_objects(access_logs_data)
-            db.session.commit()
-            print("initialize_database: Logs de acceso sembrados.")
-        else:
-            print("initialize_database: Logs de acceso ya existen, no se siembran.")
-        # Eliminar la siembra para la tabla Archive
-        # if not models.Archive.query.first(): ... (todo este bloque se elimina)
-
-    print("initialize_database: Finalizado.")
+            print("initialize_first_mission_db: No hay misiones definidas en config.py.")
+        print("initialize_first_mission_db: Finalizado.")

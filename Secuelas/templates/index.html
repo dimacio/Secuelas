@@ -7,11 +7,11 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Courier New', Courier, monospace; background-color: #0A0A0A; color: #00FF41; }
-        .terminal-container { border: 2px solid #00FF41; padding: 20px; margin: 20px; background-color: #0D0D0D; box-shadow: 0 0 15px #00FF41; }
+        .terminal-container { border: 2px solid #00FF41; padding: 20px; margin: 20px auto; background-color: #0D0D0D; box-shadow: 0 0 15px #00FF41; max-width: 1000px; }
         .message-box { border: 1px solid #00B32C; padding: 15px; margin-bottom: 20px; background-color: #0F0F0F; }
-        .console-input { width: 100%; background-color: #000; color: #00FF41; border: 1px solid #00B32C; padding: 10px; font-family: 'Courier New', Courier, monospace; margin-bottom:10px; }
-        .results-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .results-table th, .results-table td { border: 1px solid #00B32C; padding: 8px; text-align: left; }
+        .console-input { width: 100%; background-color: #000; color: #00FF41; border: 1px solid #00B32C; padding: 10px; font-family: 'Courier New', Courier, monospace; margin-bottom:10px; min-height: 120px; }
+        .results-table { width: 100%; border-collapse: collapse; margin-top: 15px; table-layout: auto; } /* table-layout: auto para mejor ajuste */
+        .results-table th, .results-table td { border: 1px solid #00B32C; padding: 8px; text-align: left; word-break: break-all; } /* word-break */
         .results-table th { background-color: #00330D; }
         .btn { background-color: #005010; color: #00FF41; border: 1px solid #00FF41; padding: 8px 15px; cursor: pointer; margin-top:10px; }
         .btn:hover { background-color: #007717; }
@@ -25,13 +25,20 @@
         .archived-findings { margin-top: 20px; border-top: 1px dashed #00B32C; padding-top: 15px; }
         .archived-findings h3 { color: #00FF41; }
         .archived-findings ul { list-style-type: '> '; padding-left: 20px; }
+        .query-display { background-color: #1a1a1a; border: 1px solid #00802b; padding: 10px; margin-top: 5px; white-space: pre-wrap; word-break: break-all; font-family: 'Courier New', Courier, monospace; color: #a2ffa2; }
     </style>
 </head>
 <body class="p-4">
     <div class="terminal-container">
         <header class="mb-6">
             <h1 class="text-3xl text-center border-b-2 border-[#00FF41] pb-2">TERMINAL DE ANALISTA - UNIDAD DE ESCRUTINIO INFORMATIVO</h1>
-            <p class="text-sm text-center mt-1">PROTOCOLO DE SEGURIDAD {{ session.current_mission_id if not mission_completed_show_results and session.current_mission_id <= num_total_missions else (mission.id if mission and mission.id else 'N/A') }} ACTIVADO</p>
+            {% if mission and mission.id != -1 and not is_final_mission %}
+                <p class="text-sm text-center mt-1">PROTOCOLO DE SEGURIDAD {{ mission.id if mission else 'N/A' }} ACTIVADO</p>
+            {% elif is_final_mission %}
+                 <p class="text-sm text-center mt-1">PROTOCOLO DE EVALUACIÓN FINAL ACTIVADO</p>
+            {% else %}
+                 <p class="text-sm text-center mt-1 text-red-500">ERROR DE SISTEMA - PROTOCOLO INDEFINIDO</p>
+            {% endif %}
         </header>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -42,29 +49,34 @@
             {% endif %}
         {% endwith %}
 
-        {% if mission and (not mission_completed_show_results or (mission_completed_show_results and mission.id)) %}
+        {% if mission and mission.id != -1 %} {# Asegurar que hay datos de misión válidos #}
             <section id="mission-briefing" class="message-box">
                 <h2 class="text-xl font-bold mb-2">
                     {% if mission_completed_show_results %}
                         [DIRECTIVA COMPLETADA: {{ mission.title }}]
+                    {% elif is_final_mission %}
+                        [{{ mission.title }}]
                     {% else %}
                         [DIRECTIVA ACTUAL: {{ mission.title }}]
                     {% endif %}
                 </h2>
+                {% if mission.coordinator_message_subject %}
                 <p class="text-sm mb-1"><strong>ASUNTO:</strong> {{ mission.coordinator_message_subject }}</p>
                 <hr class="border-[#00B32C] my-2">
+                {% endif %}
                 <div class="whitespace-pre-wrap">{{ mission.coordinator_message_body }}</div>
             </section>
             
             {% if not is_final_mission %}
                 {% if mission_completed_show_results %}
+                    {# Mostrar la consulta exitosa y sus resultados #}
                     <section id="completed-mission-info" class="mt-4">
-                        <h3 class="text-lg mb-2">CONSULTA EJECUTADA (EXITOSA):</h3>
-                        <textarea class="console-input" rows="8" readonly>{{ last_query if last_query else '' }}</textarea>
+                        <h3 class="text-lg mb-1">CONSULTA EJECUTADA (EXITOSA):</h3>
+                        <div class="query-display">{{ last_query if last_query else 'No disponible.' }}</div>
                         
                         {% if results %}
                         <h3 class="text-lg mb-2 mt-4">RESULTADOS OBTENIDOS:</h3>
-                        {% if columns and results %}
+                        {% if columns and results and results[0].status is not defined %} {# No mostrar tabla si es solo un mensaje de estado #}
                             <div class="overflow-x-auto">
                                 <table class="results-table">
                                     <thead>
@@ -85,10 +97,12 @@
                                     </tbody>
                                 </table>
                             </div>
-                        {% elif results[0] and results[0].status %}
-                             <p>{{ results[0].status }}</p>
+                        {% elif results and results[0] and results[0].status %}
+                             <p class="mt-2">{{ results[0].status }}</p>
+                        {% elif not results %}
+                             <p class="mt-2">La consulta no produjo filas.</p>
                         {% else %}
-                            <p>La consulta no produjo resultados visibles o fue un comando sin retorno de filas.</p>
+                            <p class="mt-2">No se produjeron resultados tabulares.</p>
                         {% endif %}
                         {% endif %}
 
@@ -97,6 +111,7 @@
                         </form>
                     </section>
                 {% else %}
+                    {# Mostrar el área para ingresar la consulta SQL #}
                     <section id="sql-console">
                         <h3 class="text-lg mb-2">ENTRADA DE CONSULTA SQL:</h3>
                         <form action="{{ url_for('main_views.submit_query') }}" method="POST">
@@ -105,29 +120,26 @@
                         </form>
                     </section>
                 {% endif %}
-            {% endif %}
-        {% elif is_final_mission %}
-             <section id="mission-briefing" class="message-box">
-                <h2 class="text-xl font-bold mb-2">[DIRECTIVA ACTUAL: {{ mission.title }}]</h2>
-                <p class="text-sm mb-1"><strong>ASUNTO:</strong> {{ mission.coordinator_message_subject }}</p>
-                <hr class="border-[#00B32C] my-2">
-                <div class="whitespace-pre-wrap">{{ mission.coordinator_message_body }}</div>
-            </section>
-        {% else %}
-            <p class="text-red-500">Error: No se pudo cargar la misión actual o la información de la misión completada.</p>
+            {% endif %} {# Fin de if not is_final_mission #}
+
+        {% elif not mission %} {# Si mission es None o no tiene id - error grave #}
+            <p class="text-red-500 p-4 bg-red-900 border border-red-500">Error crítico: No se pudo cargar la información de la misión. Por favor, reinicie la simulación o contacte al administrador.</p>
         {% endif %}
 
-        {% if error %}
+
+        {# Mostrar error de SQL si existe Y NO estamos mostrando una misión completada (donde el error no sería relevante) #}
+        {% if error and not mission_completed_show_results %}
             <section id="error-output" class="mt-4 p-3 bg-red-900 border border-red-500">
-                <h3 class="text-lg text-red-300">ERROR DE SISTEMA:</h3>
+                <h3 class="text-lg text-red-300">ERROR DE SISTEMA / CONSULTA:</h3>
                 <p class="text-red-200 whitespace-pre-wrap">{{ error }}</p>
             </section>
         {% endif %}
 
-        {% if results and not mission_completed_show_results %} 
+        {# Mostrar resultados de la consulta si existen, NO es un error Y NO estamos mostrando una misión completada (ya se muestran arriba) #}
+        {% if results and not error and not mission_completed_show_results %} 
             <section id="query-results" class="mt-4">
-                <h3 class="text-lg mb-2">RESULTADOS DE LA CONSULTA:</h3>
-                {% if columns and results %}
+                <h3 class="text-lg mb-2">RESULTADOS DE LA CONSULTA ACTUAL:</h3>
+                {% if columns and results and results[0].status is not defined %}
                     <div class="overflow-x-auto">
                         <table class="results-table">
                             <thead>
@@ -148,10 +160,12 @@
                             </tbody>
                         </table>
                     </div>
-                {% elif results[0] and results[0].status %}
+                {% elif results and results[0] and results[0].status %}
                      <p>{{ results[0].status }}</p>
+                {% elif not results %}
+                     <p>La consulta no produjo filas.</p>
                 {% else %}
-                    <p>La consulta no produjo resultados visibles o fue un comando sin retorno de filas.</p>
+                    <p>La consulta se ejecutó pero no produjo resultados tabulares.</p>
                 {% endif %}
             </section>
         {% endif %}
