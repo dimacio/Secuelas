@@ -12,9 +12,6 @@ main_views = Blueprint('main_views', __name__)
 
 def get_all_missions_from_db():
     """Obtiene todas las misiones activas de la base de datos, ordenadas por ID."""
-    # Usar with_entities para cargar solo los IDs si eso es todo lo que se necesita a menudo,
-    # o cargar los objetos completos si se necesitan más atributos.
-    # Por ahora, cargamos objetos completos ya que se usan varios atributos.
     return MissionDefinitionDB.query.filter_by(is_active=True).order_by(asc(MissionDefinitionDB.id)).all()
 
 def get_mission_from_db(mission_id):
@@ -57,14 +54,14 @@ def setup_current_mission_db(mission_id):
 @main_views.route('/game', methods=['GET'])
 def game_interface():
     all_missions_db_objects = get_all_missions_from_db()
-    all_mission_ids = [m.id for m in all_missions_db_objects] # Extraer IDs mientras la sesión está activa
+    all_mission_ids = [m.id for m in all_missions_db_objects] 
 
     if not all_mission_ids:
         flash("No hay misiones disponibles en este momento. Contacte al administrador.", "error")
         return redirect(url_for('main_views.landing_page'))
 
     if 'current_mission_id' not in session or session['current_mission_id'] not in all_mission_ids:
-        session['current_mission_id'] = all_mission_ids[0] # Empezar con la primera misión válida
+        session['current_mission_id'] = all_mission_ids[0] 
         session['archived_findings'] = []
     
     current_mission_id = session.get('current_mission_id')
@@ -79,7 +76,7 @@ def game_interface():
                  flash("Error al preparar el entorno de la misión. Por favor, intente de nuevo o contacte al administrador.", "error")
                  return redirect(url_for('main_views.landing_page')) 
         elif current_mission_id > last_db_mission_id and last_db_mission_id > 0: 
-            pass # Se manejará para mostrar "Fin de la Demostración"
+            pass 
         else: 
             flash(f"Error: No se puede cargar la misión ID {current_mission_id}. Volviendo al inicio.", "error")
             session.clear()
@@ -92,7 +89,6 @@ def game_interface():
     if mission_completed_show_results:
         mission_id_to_load = session.get('completed_mission_id_for_display', current_mission_id)
     
-    # Obtener el objeto de misión de la BD
     mission_object_from_db = get_mission_from_db(mission_id_to_load)
 
     if not mission_completed_show_results and current_mission_id > last_db_mission_id and last_db_mission_id > 0 :
@@ -112,9 +108,9 @@ def game_interface():
             "coordinator_message_body": mission_object_from_db.coordinator_message_body,
             "hint": mission_object_from_db.hint,
             "success_message": mission_object_from_db.success_message,
-            "evaluation_options": mission_object_from_db.evaluation_options # Usa la property
+            "evaluation_options": mission_object_from_db.evaluation_options 
         }
-    else: # Misión no encontrada o estado inesperado
+    else: 
         flash(f"Error: Misión ID {mission_id_to_load} no encontrada o inválida.", "error")
         mission_data_for_template_dict = { 
             "id": -1, "title": "Error de Sistema",
@@ -122,9 +118,6 @@ def game_interface():
             "coordinator_message_body": "Contacte al administrador. Código de error: M_LOAD_FAIL",
             "hint": None, "success_message": None, "evaluation_options": {}
         }
-        # Podrías redirigir aquí si es un error irrecuperable
-        # return redirect(url_for('main_views.landing_page'))
-
 
     query_results = session.get('query_results', None)
     column_names = session.get('column_names', None)
@@ -153,7 +146,7 @@ def submit_query():
     session['last_query'] = user_sql_query
 
     current_mission_id = session.get('current_mission_id', 1)
-    all_missions_db_objects = get_all_missions_from_db()
+    all_missions_db_objects = get_all_missions_from_db() 
     all_mission_ids = [m.id for m in all_missions_db_objects]
     last_db_mission_id = all_mission_ids[-1] if all_mission_ids else 0
 
@@ -189,9 +182,7 @@ def submit_query():
     eval_message = ""
 
     try:
-        # Asegurar que la BD esté configurada para la misión actual antes de ejecutar consultas
         if not setup_current_mission_db(current_mission_id):
-            # El error ya fue flasheado por setup_current_mission_db
             return redirect(url_for('main_views.game_interface'))
 
         print(f"Ejecutando consulta del usuario para Misión {current_mission_id}: {user_sql_query}")
@@ -211,9 +202,7 @@ def submit_query():
         
         correct_column_names = list(correct_result_proxy.keys())
         correct_query_results = [dict(row._mapping) for row in correct_result_proxy.fetchall()]
-        # No es necesario un commit aquí para SELECTs en la mayoría de las DBs, pero es inofensivo.
-        # db.session.commit() 
-
+        
         is_correct, eval_message = compare_results(
             user_results=user_query_results,
             user_columns=user_column_names,
@@ -231,7 +220,6 @@ def submit_query():
             session['mission_completed_show_results'] = True
             session['completed_mission_id_for_display'] = current_mission_id
             
-            # Ejemplo de archivado, ajustar según sea necesario
             if current_mission_id == 3 and user_query_results and isinstance(user_query_results, list) and user_query_results:
                  finding_summary = f"Misión {current_mission_id}: Anomalía detectada en PROYECTO_QUIMERA. {len(user_query_results)} registro(s) sospechoso(s) encontrado(s)."
                  if finding_summary not in session.get('archived_findings', []):
@@ -257,13 +245,17 @@ def submit_query():
         session.pop('query_results', None)
         session.pop('column_names', None)
         print(f"Error inesperado en submit_query: {e}", exc_info=True) 
+    finally:
+        # Flask-SQLAlchemy generalmente maneja el cierre de sesión al final de la solicitud.
+        # db.session.close() # Descomentar con precaución si se sospechan problemas de sesión persistentes.
+        pass
 
     return redirect(url_for('main_views.game_interface'))
 
 @main_views.route('/next_mission', methods=['POST'])
 def next_mission():
     current_mission_id = session.get('current_mission_id', 1)
-    all_missions_db_objects = get_all_missions_from_db()
+    all_missions_db_objects = get_all_missions_from_db() 
     all_mission_ids = [m.id for m in all_missions_db_objects]
     
     if session.get('mission_completed_show_results', False) and \
@@ -279,7 +271,7 @@ def next_mission():
                 last_id = all_mission_ids[-1] if all_mission_ids else 0
                 session['current_mission_id'] = last_id + 1 
                 flash("Todas las directivas han sido completadas. Evaluación finalizada.", "success")
-        except ValueError: # current_mission_id no encontrado en all_mission_ids
+        except ValueError: 
             flash("Error al avanzar de misión. Reiniciando.", "error")
             session['current_mission_id'] = all_mission_ids[0] if all_mission_ids else 1
 
@@ -327,8 +319,6 @@ def admin_execute_setup_sql():
         return jsonify({'error': 'No se proporcionaron sentencias SQL para ejecutar.'}), 400
     try:
         with current_app.app_context():
-            # ADVERTENCIA: Esto ejecuta en la BD principal. 
-            # Para producción, usar una BD de prueba o transacciones que se reviertan.
             execute_sql_script(db.session, statements)
         return jsonify({'message': f'{len(statements)} sentencia(s) de configuración ejecutada(s) con éxito.'})
     except Exception as e:
@@ -364,12 +354,8 @@ def admin_execute_correct_query():
             if result_proxy.returns_rows:
                 columns = list(result_proxy.keys())
                 results = [dict(row._mapping) for row in result_proxy.fetchall()]
-                # No es necesario commit para SELECT, pero si el setup_sql hizo cambios y no se hizo commit allí,
-                # podría ser relevante. execute_sql_script ya hace commit.
-                # db.session.commit() 
                 return jsonify({'results': results, 'columns': columns})
             else:
-                # db.session.commit() # Si fuera DML/DDL
                 return jsonify({'message': 'La consulta correcta se ejecutó pero no devolvió filas.'}), 200
     except Exception as e:
         db.session.rollback()
