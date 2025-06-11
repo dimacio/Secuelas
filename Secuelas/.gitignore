@@ -1,0 +1,20 @@
+# Dependencies
+/node_modules
+/backend/instance
+/backend/__pycache__
+
+# Build artifacts
+/frontend/build
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and OS files
+.idea/
+.vscode/
+*.swp
+.DS_Store
