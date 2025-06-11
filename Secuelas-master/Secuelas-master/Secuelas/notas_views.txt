@@ -1,0 +1,53 @@
+-----------Flask Sessions-----------
+
+FROM: https://testdriven.io/blog/flask-sessions/
+
+A session is used to store information related to a user, across different requests, as they interact with a web app. 
+The data stored for a session should be considered temporary data, as the session will eventually expire. 
+To permanently store data, you need to utilize a database.
+
+Computer storage is a nice analogy here: 
+Temporary items on a computer are stored in RAM (Random Access Memory), much like sessions, 
+while permanent items are stored on the hard drive, much like databases.
+
+Para guardar los avances en el juego podría almacenar el nivel al que se llego y los hallazgos en la misma base de datos SQL
+
+
+----------Generator Expression----------
+
+current_mission_data = next((m for m in MISSIONS if m['id'] == current_mission_id), None)
+
+Desglose:
+
+* MISSIONS:
+    Se asume que MISSIONS es una lista. Cada elemento de esta lista es un diccionario. 
+    Cada diccionario representa una "misión" y contiene información sobre ella, incluyendo una clave llamada 'id'.
+
+* (m for m in MISSIONS if m['id'] == current_mission_id):
+    Esto se llama una "expresión generadora". La estructura es similar a una lista por comprensión
+    (expression for item in iterable if condition)
+    En este caso,Funciona así:
+        
+    * for m in MISSIONS: 
+    Recorre cada elemento de la lista MISSIONS. A cada elemento (que es un diccionario de misión) lo llamamos m temporalmente.
+
+    * if m['id'] == current_mission_id: 
+    Para cada diccionario m, comprueba si el valor asociado con la clave 'id' es igual al valor de la variable current_mission_id.
+
+La expresión generadora produce (uno a la vez, sin crear una lista completa en memoria) 
+solo aquellos diccionarios m que cumplen con la condición del if.
+
+* next(...):
+    La función next() toma un iterador (la expresión generadora actúa como uno) y devuelve el siguiente elemento.
+
+    * El primer argumento es la expresión generadora: (m for m in MISSIONS if m['id'] == current_mission_id).
+    * El segundo argumento, None, es un valor por defecto. Si la expresión generadora no produce ningún elemento (es decir, ninguna misión cumple la condición), next() devolverá este valor por defecto (None).
+
+* Asignación a current_mission_data:
+    Si se encuentra una misión en MISSIONS cuyo 'id' coincide con current_mission_id, 
+    next() devuelve el primer diccionario de misión que cumple esa condición. 
+    Este diccionario se guarda en la variable current_mission_data.
+    Si no se encuentra ninguna misión con el id correspondiente, next() devuelve el valor por defecto None, 
+    y current_mission_data se establece en None.
+
+

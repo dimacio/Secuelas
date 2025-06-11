@@ -1,0 +1,50 @@
+# Secuelas/docker-compose.yml
+# The 'version' attribute is obsolete and has been removed.
+
+services:
+  backend:
+    build: ./backend
+    container_name: secuelas-backend
+    ports:
+      - "5001:5001"
+    volumes:
+      # Mount the entire backend directory to allow for code changes without rebuilding
+      - ./backend:/app 
+    environment:
+      - FLASK_ENV=development
+      - FLASK_APP=app:app # Explicitly point to the app object in app.py
+    
+    # This command block is crucial. It runs the database initialization
+    # BEFORE starting the server, ensuring the database is ready.
+    command: >
+      sh -c "flask init-db && flask run --host=0.0.0.0 --port=5001"
+    
+    networks:
+      - secuelas-net
+
+  frontend:
+    build: ./frontend
+    container_name: secuelas-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      # Mount the src directory for hot-reloading during development
+      - ./frontend/src:/app/src
+    depends_on:
+      - backend
+    networks:
+      - secuelas-net
+
+  db-admin:
+    image: adminer
+    container_name: secuelas-db-admin
+    ports:
+      - "8080:8080"
+    # No volume needed for Adminer itself, but it needs access to the backend's volume
+    # which it gets through the shared network.
+    networks:
+      - secuelas-net
+
+networks:
+  secuelas-net:
+    driver: bridge

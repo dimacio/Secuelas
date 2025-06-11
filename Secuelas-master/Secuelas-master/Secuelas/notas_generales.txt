@@ -1,0 +1,40 @@
+Lo primero que tendría que hacer es armar un repo con todo esto para poder organizarme
+
+Despues debería separar el relleno de las bases de datos de app.py
+sería mover initialize_database() a otro .py # Hecho
+
+Sería bueno ver como va generando nuevas misiones Gemini y Jules
+
+
+--En la misión 3--
+te toma como válido esta busqueda:
+
+SELECT
+*
+FROM
+document_access_logs
+
+pero enrealidad había que filtrar desde una fecha en particular, de la columna 	access_timestamp
+
+
+
+--------------Creación de misión--------------
+
+Hay que crear una tabla nueva en models.py
+Rellenarla desde app.py
+Diseñar los detalles del mensaje y la respuesta en config.py
+
+
+
+BUSCAR QUE SON LAS RELATIONSHIP EN SQL Y LAS BACKREFERENCE
+Estudiar los comandaos JOIN
+Ver como se puede aplicar a la trama que se arma.
+
+Debería crear una tabla de documents en vez de archive porque ya esta mencionada en la de logs
+de esta forma podría vincularlas y poder acceder a todos accesos que tuvo un documento
+e indirectamente a todas los empleados que tuvieron relación con ese documento
+
+
+En ese caso tendría que usar la document_id que es la primary_key de la tabla documents
+como foreign_keys en la columna document_id que ya existe en access_logs
+y crear un backref en la tabla documents para que pueda recuperar todo los accesos que tuvo.

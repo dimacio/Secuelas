@@ -1,0 +1,143 @@
+/* Secuelas/frontend/src/GameTerminal.css */
+
+.terminal-container {
+    border: 2px solid #00FF41;
+    padding: 20px;
+    margin: 20px auto;
+    background-color: #0D0D0D;
+    box-shadow: 0 0 15px #00FF41;
+    max-width: 1000px;
+    width: 100%;
+    text-align: left; /* Align text to the left for readability */
+}
+
+header.mb-6 h1 {
+    font-size: 1.875rem; /* text-3xl */
+    text-align: center;
+    border-bottom-width: 2px;
+    border-color: #00FF41;
+    padding-bottom: 0.5rem;
+}
+
+.message-box {
+    border: 1px solid #00B32C;
+    padding: 15px;
+    margin-bottom: 20px;
+    background-color: #0F0F0F;
+}
+
+.message-box h2 {
+    font-size: 1.25rem; /* text-xl */
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+}
+
+.message-box hr {
+    border-color: #00B32C;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.message-box .whitespace-pre-wrap {
+    white-space: pre-wrap; /* Allows text to wrap */
+}
+
+.console-input {
+    width: 100%;
+    background-color: #000;
+    color: #00FF41;
+    border: 1px solid #00B32C;
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    margin-bottom: 10px;
+    min-height: 120px;
+    resize: vertical; /* Allow vertical resizing */
+}
+
+.results-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    table-layout: auto;
+}
+
+.results-table th, .results-table td {
+    border: 1px solid #00B32C;
+    padding: 8px;
+    text-align: left;
+    word-break: break-all;
+}
+
+.results-table th {
+    background-color: #00330D;
+}
+
+.btn {
+    background-color: #005010;
+    color: #00FF41;
+    border: 1px solid #00FF41;
+    padding: 8px 15px;
+    cursor: pointer;
+    margin-top: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    transition: background-color 0.3s ease;
+}
+
+.btn:hover:not(:disabled) {
+    background-color: #007717;
+}
+
+.btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.btn-next {
+    background-color: #007760;
+    color: #B2FFF6;
+    border-color: #00FFD1;
+}
+
+.btn-next:hover:not(:disabled) {
+    background-color: #00A287;
+}
+
+.flash-message {
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 1px solid;
+}
+
+.flash-success { background-color: #004d00; color: #ccffcc; border-color: #009900; }
+.flash-warning { background-color: #4d4d00; color: #ffffcc; border-color: #999900; }
+.flash-error   { background-color: #4d0000; color: #ffcccc; border-color: #990000; }
+.flash-info    { background-color: #00334d; color: #cce6ff; border-color: #006699; }
+
+.archived-findings {
+    margin-top: 20px;
+    border-top: 1px dashed #00B32C;
+    padding-top: 15px;
+}
+
+.archived-findings h3 {
+    color: #00FF41;
+}
+
+.archived-findings ul {
+    list-style-type: '> ';
+    padding-left: 20px;
+}
+
+footer {
+    text-align: center;
+}
+
+footer .btn {
+    background-color: #b45309;
+    border-color: #f59e0b;
+    color: #fef3c7;
+}
+
+footer .btn:hover:not(:disabled) {
+    background-color: #92400e;
+}
