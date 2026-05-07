@@ -1,21 +1,16 @@
-# Exclude node_modules — Docker installs them fresh inside the container
-Secuelas/frontend/node_modules
-Secuelas/frontend/.cache
-Secuelas/frontend/build
+# Build context is Secuelas/ (Railway Root Directory setting)
+# Paths here are relative to that folder
+
+# Exclude node_modules — Docker installs them fresh
+frontend/node_modules
+frontend/.cache
+frontend/build
 
 # Python cache
-Secuelas/backend/__pycache__
-Secuelas/backend/instance
-Secuelas/backend/*.pyc
+backend/__pycache__
+backend/instance
+backend/*.pyc
 
 # Git and editor files
 .git
 *.md
-
-# Local env files
-.env
-.env.local
-
-# Other projects in the repo root
-Secuelas-master/
-plan_misiones.txt
