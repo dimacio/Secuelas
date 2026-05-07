@@ -1,0 +1,17 @@
+# Exclude node_modules — Docker installs them fresh inside the container
+frontend/node_modules
+frontend/.cache
+
+# Python cache
+backend/__pycache__
+backend/instance
+backend/*.pyc
+
+# Git and editor files
+.git
+.gitignore
+*.md
+
+# Local env files
+.env
+.env.local
