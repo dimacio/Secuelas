@@ -30,6 +30,10 @@ services:
     volumes:
       # Mount the src directory for hot-reloading during development
       - ./frontend/src:/app/src
+    environment:
+      # Points the React dev server to the local backend (different port in dev).
+      # In production (Railway) this is not set and the app uses the relative /api path.
+      - REACT_APP_API_URL=http://localhost:5001/api
     depends_on:
       - backend
     networks:

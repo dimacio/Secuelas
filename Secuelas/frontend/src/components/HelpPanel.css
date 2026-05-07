@@ -1,0 +1,302 @@
+/* ── Help Panel ─────────────────────────────────────────────────────────── */
+
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 200;
+}
+
+.help-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 380px;
+  max-width: 92vw;
+  height: 100vh;
+  background: #0a0a0a;
+  border-left: 2px solid #00FF41;
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+}
+
+.help-panel--open {
+  transform: translateX(0);
+}
+
+/* Header */
+.help-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid #00B32C;
+  flex-shrink: 0;
+}
+
+.help-panel__title {
+  color: #00FF41;
+  font-size: 0.9rem;
+  font-weight: bold;
+  letter-spacing: 0.1em;
+}
+
+.help-panel__close {
+  background: none;
+  border: 1px solid #00B32C;
+  color: #00FF41;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.help-panel__close:hover {
+  background: #001a00;
+}
+
+.help-panel__subtitle {
+  color: #555;
+  font-size: 0.72rem;
+  padding: 6px 16px 10px;
+  border-bottom: 1px solid #1a1a1a;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* Scrollable nav */
+.help-panel__nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.help-panel__nav::-webkit-scrollbar {
+  width: 4px;
+}
+.help-panel__nav::-webkit-scrollbar-track { background: #0a0a0a; }
+.help-panel__nav::-webkit-scrollbar-thumb { background: #00B32C; }
+
+/* Category */
+.help-cat {
+  border-bottom: 1px solid #111;
+}
+
+.help-cat__btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #00CC33;
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  padding: 10px 16px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.12s;
+}
+
+.help-cat__btn:hover,
+.help-cat__btn--open {
+  background: #001400;
+  color: #00FF41;
+}
+
+.help-cat__icon {
+  font-size: 0.9rem;
+  width: 16px;
+  text-align: center;
+}
+
+.help-cat__arrow {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: #005500;
+}
+
+.help-cat__btn--open .help-cat__arrow {
+  color: #00FF41;
+}
+
+/* Items */
+.help-cat__items {
+  background: #050505;
+  border-top: 1px solid #111;
+}
+
+.help-item__btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: #888;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  padding: 8px 16px 8px 32px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.12s, background 0.12s;
+  border-bottom: 1px solid #0d0d0d;
+}
+
+.help-item__btn:hover,
+.help-item__btn--open {
+  color: #00CC33;
+  background: #001000;
+}
+
+.help-item__arrow {
+  font-size: 0.6rem;
+  color: #444;
+  flex-shrink: 0;
+}
+
+.help-item__btn--open .help-item__arrow {
+  color: #00CC33;
+}
+
+/* Content */
+.help-item__content {
+  background: #020202;
+  padding: 10px 16px 12px 32px;
+  border-bottom: 1px solid #111;
+}
+
+.help-item__desc {
+  color: #888;
+  font-size: 0.76rem;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+
+.help-example {
+  margin-top: 8px;
+}
+
+.help-example__label {
+  color: #445544;
+  font-size: 0.72rem;
+  margin: 0 0 4px;
+  font-style: italic;
+}
+
+.help-example__code {
+  background: #0d150d;
+  border: 1px solid #003300;
+  color: #00FF41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  padding: 8px 10px;
+  margin: 0;
+  white-space: pre;
+  overflow-x: auto;
+  line-height: 1.5;
+  border-radius: 2px;
+}
+
+/* Footer */
+.help-panel__footer {
+  padding: 10px 16px;
+  border-top: 1px solid #1a1a1a;
+  color: #333;
+  font-size: 0.68rem;
+  text-align: center;
+  flex-shrink: 0;
+  letter-spacing: 0.05em;
+}
+
+/* ── Floating trigger button ─────────────────────────────────────────────── */
+
+.help-trigger {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 199;
+  background: #001a00;
+  border: 2px solid #00FF41;
+  color: #00FF41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  padding: 10px 14px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.15);
+}
+
+.help-trigger:hover {
+  background: #002800;
+  box-shadow: 0 0 18px rgba(0, 255, 65, 0.35);
+}
+
+.help-trigger__icon {
+  font-size: 1rem;
+}
+
+/* ── Hint box ────────────────────────────────────────────────────────────── */
+
+.hint-box {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #0a100a;
+  border: 1px solid #336633;
+  border-left: 3px solid #00FF41;
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+}
+
+.hint-box__label {
+  color: #00B32C;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  margin-bottom: 5px;
+}
+
+.hint-box__text {
+  color: #AADDAA;
+  line-height: 1.5;
+}
+
+.hint-box--exhausted .hint-box__label {
+  color: #556655;
+}
+
+.hint-btn {
+  margin-top: 10px;
+  background: none;
+  border: 1px solid #336633;
+  color: #00B32C;
+  font-family: 'Courier New', monospace;
+  font-size: 0.78rem;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: background 0.12s, color 0.12s;
+}
+
+.hint-btn:hover:not(:disabled) {
+  background: #001a00;
+  color: #00FF41;
+  border-color: #00FF41;
+}
+
+.hint-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

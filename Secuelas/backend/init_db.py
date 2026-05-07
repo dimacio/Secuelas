@@ -103,8 +103,27 @@ def load_initial_missions_from_config_to_db(db_session):
         db_session.rollback()
         print(f"load_initial_missions: Error al hacer commit de las misiones: {e}")
 
+def _recreate_db_file(app_context):
+    """
+    If the SQLite database file is corrupted, delete it and let SQLAlchemy
+    recreate it from scratch. Only runs inside an app context.
+    """
+    import os
+    db_uri = app_context.config.get('SQLALCHEMY_DATABASE_URI', '')
+    if not db_uri.startswith('sqlite:///'):
+        return  # Only handle SQLite
+    db_path = db_uri[len('sqlite:///'):]
+    if os.path.exists(db_path):
+        try:
+            os.remove(db_path)
+            print(f"initialize_app_database: Archivo de BD corrupto eliminado: {db_path}")
+        except OSError as e:
+            print(f"initialize_app_database: No se pudo eliminar el archivo de BD: {e}")
+            raise
+
+
 # This is the correctly named function that app.py expects
-def initialize_app_database(app_context): 
+def initialize_app_database(app_context):
     """
     Inicializa la base de datos de la aplicación:
     1. Crea todas las tablas definidas en models.py (incluida MissionDefinitionDB).
@@ -113,22 +132,26 @@ def initialize_app_database(app_context):
     """
     with app_context.app_context():
         print("initialize_app_database: Iniciando...")
-        
-        print("initialize_app_database: Creando todas las tablas definidas en models.py...")
-        db.create_all() 
-        print("initialize_app_database: Tablas creadas (o ya existían).")
 
+        print("initialize_app_database: Creando todas las tablas definidas en models.py...")
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"initialize_app_database: Error al crear tablas ({e}). La BD puede estar corrupta — se intentará recrear.")
+            _recreate_db_file(app_context)
+            db.create_all()  # Segunda oportunidad con BD limpia
+        print("initialize_app_database: Tablas creadas (o ya existian).")
         load_initial_missions_from_config_to_db(db.session)
 
         first_mission_from_db = MissionDefinitionDB.query.filter_by(is_active=True).order_by(asc(MissionDefinitionDB.id)).first()
         
         if first_mission_from_db:
-            print(f"initialize_app_database: Configurando entorno para la primera misión (ID: {first_mission_from_db.id}) desde la BD...")
+            print(f"initialize_app_database: Configurando entorno para la primera mision (ID: {first_mission_from_db.id}) desde la BD...")
             try:
                 execute_sql_script(db.session, first_mission_from_db.setup_sql)
-                print(f"initialize_app_database: Entorno para la Misión {first_mission_from_db.id} configurado.")
+                print(f"initialize_app_database: Entorno para la Mision {first_mission_from_db.id} configurado.")
             except Exception as e:
-                print(f"initialize_app_database: Error configurando el entorno para la primera misión desde la BD: {e}")
+                print(f"initialize_app_database: Error configurando el entorno para la primera mision desde la BD: {e}")
         else:
             print("initialize_app_database: No hay misiones activas en la base de datos para configurar el entorno inicial del juego.")
         

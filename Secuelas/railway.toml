@@ -1,0 +1,10 @@
+[build]
+# Use the unified Dockerfile at the root of the project
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Railway injects $PORT automatically; the Dockerfile CMD reads it
+healthcheckPath = "/api/game_state"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

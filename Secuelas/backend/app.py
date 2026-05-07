@@ -1,6 +1,6 @@
 # Secuelas/backend/app.py
 import os
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask.cli import with_appcontext
 from flask_cors import CORS
 
@@ -31,7 +31,19 @@ def create_app():
 
     # --- Initialize Extensions ---
     print("create_app: Initializing extensions (CORS, SQLAlchemy)...")
-    CORS(app_instance, supports_credentials=True)
+    # In production Flask serves the React build from the same origin, so CORS
+    # is only needed for local development (two separate ports).
+    cors_origins_raw = os.environ.get(
+        'CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000'
+    )
+    cors_origins = [o.strip() for o in cors_origins_raw.split(',') if o.strip()]
+    CORS(
+        app_instance,
+        supports_credentials=True,
+        origins=cors_origins,
+        allow_headers=["Content-Type"],
+        methods=["GET", "POST", "OPTIONS"],
+    )
     db.init_app(app_instance)
     print("create_app: Extensions initialized.")
 
@@ -54,7 +66,23 @@ def create_app():
         print("Database has been successfully initialized.")
 
     print("create_app: 'init-db' command registered.")
-    
+
+    # --- Serve React frontend (production) ---
+    # Flask serves the React build folder when deployed as a single service.
+    # In local development the CRA dev server runs on port 3000 instead.
+    build_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build')
+    if os.path.isdir(build_dir):
+        @app_instance.route('/', defaults={'path': ''})
+        @app_instance.route('/<path:path>')
+        def serve_react(path):
+            target = os.path.join(build_dir, path)
+            if path and os.path.exists(target):
+                return send_from_directory(build_dir, path)
+            return send_from_directory(build_dir, 'index.html')
+        print(f"create_app: Serving React build from {build_dir}")
+    else:
+        print("create_app: No 'build/' folder found — skipping static file serving (local dev mode).")
+
     return app_instance
 
 # --- Main Application Entry Point ---
@@ -62,6 +90,4 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    # This block now only runs the development server when the script is executed directly.
-    # The 'flask run' command in docker-compose.yml will use the 'app' object above.
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5001)), debug=True)

@@ -126,10 +126,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use SELECT * FROM empleados para obtener todas las columnas. "
-            "Agregue ORDER BY id ASC para ordenar por ID ascendente."
-        ),
+        "hint": "Consulta la tabla principal de personal del sistema sin filtros. | Use SELECT * FROM empleados para obtener todas las columnas. Agregue ORDER BY id ASC.",
         "success_message": (
             "Incorporación registrada. Su expediente ha sido creado en el sistema.\n\n"
             "Somos siete en total. Guarde bien estos nombres — los necesitará."
@@ -160,10 +157,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Especifique las columnas nombre, cargo, departamento en el SELECT. "
-            "Use ORDER BY nombre ASC para orden alfabético."
-        ),
+        "hint": "No todas las columnas son necesarias, elige solo las solicitadas. | Especifique las columnas nombre, cargo, departamento en el SELECT. Use ORDER BY nombre ASC.",
         "success_message": (
             "Directorio generado y publicado en el portal interno.\n\n"
             "Nota personal: el Agente Nova K figura como 'Consultoría Externa'. "
@@ -199,10 +193,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use WHERE departamento != 'Consultoría Externa' para excluir consultores. "
-            "Ordene con ORDER BY nivel_acceso DESC, nombre ASC."
-        ),
+        "hint": "Hay un departamento que no deberia aparecer en los resultados. | Use WHERE departamento != para excluir. Ordene con ORDER BY nivel_acceso DESC, nombre ASC.",
         "success_message": (
             "Lista de personal interno extraída. Seis empleados en plantilla.\n\n"
             "La brecha de nivel_acceso entre el Director Umbra (5) y el resto del equipo (2-3) "
@@ -238,10 +229,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use WHERE nivel_acceso BETWEEN 4 AND 5 para filtrar el rango. "
-            "Ordene con ORDER BY nivel_acceso DESC, nombre ASC."
-        ),
+        "hint": "El nivel de acceso tiene un rango acotado, busca un operador para rangos. | Use WHERE nivel_acceso BETWEEN 4 AND 5. Ordene con ORDER BY nivel_acceso DESC, nombre ASC.",
         "success_message": (
             "Convocatoria enviada a 2 personas.\n\n"
             "Observación: el Agente Nova K, contratista externo, tiene nivel de acceso 4 — "
@@ -288,10 +276,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use WHERE titulo LIKE '%Protocolo%' — los % antes y después permiten "
-            "encontrar 'Protocolo' en cualquier parte del título."
-        ),
+        "hint": "Un titulo de documento contiene una palabra clave especifica. | Use WHERE titulo LIKE con el signo % antes y despues de la palabra buscada.",
         "success_message": (
             "Tres protocolos hallados, todos clasificados como SECRETO.\n\n"
             "El más antiguo: 'Protocolo de Vigilancia Ciudadana', creado en junio de 2024. "
@@ -330,10 +315,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use WHERE estacion_entrada IN ('Plaza Central', 'Ministerio', 'Archivo Nacional') "
-            "para filtrar las tres zonas. Luego ORDER BY timestamp_entrada ASC."
-        ),
+        "hint": "Los registros de acceso fisico revelan por que estaciones paso alguien. | Use WHERE estacion_entrada IN con las tres zonas de interes. Luego ORDER BY timestamp_entrada ASC.",
         "success_message": (
             "10 movimientos detectados en zonas de interés.\n\n"
             "Hay dos tarjetas no identificadas: SUBE-EXT1 (ingresó al Ministerio a las 07:55) "
@@ -371,10 +353,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Filtre con WHERE fecha = '2025-06-14', ordene con ORDER BY timestamp_entrada DESC "
-            "y use LIMIT 4 al final de la consulta."
-        ),
+        "hint": "Necesitas filtrar por una fecha especifica y limitar cuantos resultados ves. | Filtre con WHERE fecha = la fecha buscada, ordene DESC y use LIMIT 4 al final.",
         "success_message": (
             "El último registro del día es SUBE-EXT2 en el Archivo Nacional a las 21:30.\n\n"
             "Una tarjeta no identificada en un archivo clasificado, de noche. "
@@ -431,11 +410,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use JOIN departamentos d ON e.departamento_id = d.id. "
-            "Alias la columna nombre del departamento como 'departamento'. "
-            "Ordene por d.presupuesto DESC, e.nombre ASC."
-        ),
+        "hint": "La informacion que necesitas esta en dos tablas, debes combinarlas. | Use JOIN departamentos ON e.departamento_id = d.id. Alias el nombre del departamento. Ordene por presupuesto DESC.",
         "success_message": (
             "Informe de presupuesto generado.\n\n"
             "Alta Dirección tiene 200.000 créditos — cuatro veces más que Análisis de Datos. "
@@ -486,10 +461,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use LEFT JOIN registros_acceso ra ON d.id = ra.documento_id. "
-            "Luego filtre WHERE ra.id IS NULL para encontrar documentos sin ningún acceso registrado."
-        ),
+        "hint": "Busca documentos que no tienen ningun registro asociado en otra tabla. | Use LEFT JOIN registros_acceso ON d.id = ra.documento_id. Luego filtre WHERE ra.id IS NULL.",
         "success_message": (
             "Dos documentos ULTRA-SECRETO sin ningún registro de acceso oficial:\n\n"
             "  · Expediente: Analista 734 — creado el 12 de mayo de 2025\n"
@@ -529,10 +501,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use WHERE fecha = '2025-06-14' AND timestamp_salida IS NULL. "
-            "IS NULL detecta campos vacíos en la base de datos."
-        ),
+        "hint": "Hay viajes sin registro de salida, busca campos vacios en esa columna. | Use WHERE fecha = la fecha buscada AND timestamp_salida IS NULL. IS NULL detecta campos vacios.",
         "success_message": (
             "Tres entradas sin salida registrada:\n\n"
             "  · SUBE-EXT1 — Ministerio, 07:55\n"
@@ -581,10 +550,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Calcule precio_unitario * cantidad AS valor_total en el SELECT. "
-            "Puede usar la misma expresión en WHERE: WHERE precio_unitario * cantidad > 10000."
-        ),
+        "hint": "El valor total de cada item se calcula multiplicando dos columnas. | Calcule precio_unitario * cantidad AS valor_total. Use esa misma expresion en WHERE para filtrar.",
         "success_message": (
             "Cuatro ítems superan los 10.000 créditos. Total: 208.100 créditos.\n\n"
             "El Software de Vigilancia Pro (90.000) y el Equipo de Cifrado (75.000) "
@@ -629,11 +595,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use GROUP BY empleado_nombre y COUNT(*) AS total_accesos. "
-            "Filtre primero con WHERE clasificacion = 'SECRETO'. "
-            "Ordene con ORDER BY total_accesos DESC, empleado_nombre ASC."
-        ),
+        "hint": "Necesitas contar cuantas veces aparece cada nombre en cierta categoria. | Use GROUP BY empleado_nombre y COUNT(*) AS total_accesos. Filtre con WHERE clasificacion primero.",
         "success_message": (
             "Tres personas accedieron a documentos SECRETO esta semana:\n\n"
             "  · Director Kael Umbra  — 6 accesos\n"
@@ -684,10 +646,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use SUM(monto) AS gasto_total, COUNT(*) AS num_transacciones, MAX(monto) AS mayor_gasto. "
-            "Agrupe con GROUP BY departamento y ordene con ORDER BY gasto_total DESC."
-        ),
+        "hint": "Agrupa las transacciones y calcula varias estadisticas por grupo. | Use SUM, COUNT y MAX en el SELECT. GROUP BY departamento. Ordene por gasto_total DESC.",
         "success_message": (
             "Alta Dirección gastó 1.305.000 créditos en 4 transacciones.\n\n"
             "Su presupuesto anual autorizado era 200.000 créditos. "
@@ -728,10 +687,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Después del GROUP BY, agregue HAVING COUNT(*) > 2 para filtrar grupos "
-            "que superen el umbral. HAVING actúa sobre el resultado del GROUP BY."
-        ),
+        "hint": "Despues de agrupar, filtra los grupos que superen cierto umbral de conteo. | Despues del GROUP BY, agregue HAVING COUNT(*) > 2. HAVING actua sobre el resultado del GROUP BY.",
         "success_message": (
             "Tres casos prioritarios:\n\n"
             "  · Director Kael Umbra  — 6\n"
@@ -783,11 +739,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Combine varios elementos: WHERE con IN y condición de fecha, "
-            "GROUP BY con dos columnas, HAVING para filtrar el conteo, "
-            "y LIMIT 5 al final."
-        ),
+        "hint": "Combina filtros, agrupamiento, condicion sobre el grupo y limite de filas. | Necesitas WHERE con IN y fecha, GROUP BY dos columnas, HAVING para el conteo, y LIMIT 5 al final.",
         "success_message": (
             "Informe consolidado. Los mismos tres nombres, los mismos documentos, la misma semana:\n\n"
             "  · Director Kael Umbra  — 6 accesos SECRETO (último: 14-Jun)\n"
@@ -842,11 +794,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Una tres tablas: empleados JOIN registros_acceso ON e.id = ra.empleado_id, "
-            "luego JOIN registros_metro ON e.tarjeta_metro = rm.tarjeta_id. "
-            "Filtre por clasificacion, fecha de acceso y fecha del metro."
-        ),
+        "hint": "Necesitas cruzar tres fuentes de datos para verificar una coartada. | Una tres tablas: empleados JOIN registros_acceso JOIN registros_metro. Filtra por clasificacion y coincidencia de fechas.",
         "success_message": (
             "Resultado: dos personas el mismo día.\n\n"
             "  · Coordinadora Vera   — accedió al doc 2 (SECRETO) — estaba en el Ministerio a las 08:15\n"
@@ -909,11 +857,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Una contratos con proveedores (ON c.proveedor_id = p.id) y con empleados "
-            "(ON c.aprobado_por = e.id). Agrupe por p.nombre, e.nombre y filtre con "
-            "HAVING SUM(c.monto) > 100000."
-        ),
+        "hint": "Busca patrones de contratacion agrupando por proveedor y quien los aprobo. | Una contratos con proveedores y empleados. Agrupe por proveedor y aprobador, filtre con HAVING SUM mayor a 100000.",
         "success_message": (
             "1.480.000 creditos en contratos aprobados por una sola persona:\n\n"
             "  · TechSecure S.A.        — 2 contratos — 940.000 creditos\n"
@@ -959,11 +903,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use una subconsulta: tarjeta_id NOT IN (SELECT tarjeta_metro FROM empleados "
-            "WHERE tarjeta_metro IS NOT NULL). El IS NOT NULL en la subconsulta evita "
-            "problemas con valores nulos."
-        ),
+        "hint": "Identifica tarjetas de transporte que no pertenecen a ningun empleado. | Use NOT IN con una subconsulta que seleccione las tarjetas de empleados. Ojo con los valores nulos.",
         "success_message": (
             "Dos operativos sin identidad registrada:\n\n"
             "  · SUBE-EXT1 — Ministerio       — 07:55  (5 min antes que el Director)\n"
@@ -1023,11 +963,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Use JOIN registros_acceso y LEFT JOIN ordenes_vigilancia. "
-            "COUNT(DISTINCT ra.documento_id) evita contar el mismo documento dos veces. "
-            "El LEFT JOIN permite mostrar empleados aunque no hayan emitido ordenes."
-        ),
+        "hint": "Cuenta accesos a documentos por empleado, incluyendo quienes vigilaron. | Use JOIN registros_acceso y LEFT JOIN ordenes_vigilancia. Use COUNT DISTINCT para evitar duplicados.",
         "success_message": (
             "El perfil completo:\n\n"
             "  · Director Kael Umbra  — 3 docs unicos — 5 ordenes emitidas\n"
@@ -1089,11 +1025,7 @@ MISSIONS = [
             "column_order_matters": True,
             "check_column_names": True
         },
-        "hint": (
-            "Una evidencias con empleados usando ev.actor = e.nombre. "
-            "Filtre WHERE e.cargo = 'Director General'. "
-            "Use MIN y MAX sobre ev.fecha para el rango temporal de cada violacion."
-        ),
+        "hint": "Cruza accesos a documentos con alertas de seguridad para el mismo dia. | Una evidencias con empleados por nombre. Filtre por cargo. Use MIN y MAX sobre fecha para el rango.",
         "success_message": (
             "Informe transmitido al Tribunal de Control Independiente.\n\n"
             "  · Vigilancia Ilegal        — 3 casos — (01-Abr a 12-May-2025)\n"
