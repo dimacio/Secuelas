@@ -1,0 +1,592 @@
+═══════════════════════════════════════════════════════════════════
+SECUELAS — PLAN DE 20 MISIONES (orden SQLBolt)
+═══════════════════════════════════════════════════════════════════
+
+TABLAS PRINCIPALES (se crean y destruyen en cada misión)
+─────────────────────────────────────────────────────────
+empleados       → id, nombre, departamento, cargo, nivel_acceso, fecha_ingreso, tarjeta_metro
+departamentos   → id, nombre, presupuesto
+empleados_dept  → id, nombre, departamento_id, cargo  (para JOINs de misión 8)
+documentos      → id, titulo, clasificacion, fecha_creacion
+registros_acceso→ id, empleado_id, empleado_nombre, documento_id, clasificacion, fecha
+registros_metro → id, tarjeta_id, estacion_entrada, timestamp_entrada, estacion_salida, timestamp_salida, fecha
+inventario      → id, nombre, precio_unitario, cantidad, departamento
+transacciones   → id, departamento, concepto, monto, fecha, aprobado_por_id
+proveedores     → id, nombre, email
+contratos       → id, proveedor_id, monto, fecha, aprobado_por
+ordenes_vigilancia → id, objetivo_id, emitido_por, fecha_inicio, status, razon
+evidencias      → id, actor, tipo_violacion, fecha, detalles
+
+EMPLEADOS BASE (usados en múltiples misiones)
+──────────────────────────────────────────────
+id | nombre                    | departamento           | cargo                    | nivel_acceso | fecha_ingreso | tarjeta_metro
+1  | Analista 734 (Usted)       | Análisis de Datos      | Analista Jr.             | 2            | 2025-05-12    | SUBE-734
+2  | Coordinadora Vera          | Análisis de Datos      | Coordinadora             | 3            | 2022-03-08    | SUBE-VER
+3  | Agente Nova K              | Consultoría Externa    | Especialista en Seguridad| 4            | 2024-11-15    | SUBE-NOV
+4  | Director Kael Umbra        | Alta Dirección         | Director General         | 5            | 2010-01-20    | SUBE-KAE
+5  | Archivista Rho             | Archivo y Documentación| Archivista Principal     | 2            | 2017-09-03    | SUBE-RHO
+6  | Supervisor Maren           | Análisis de Datos      | Supervisor Senior        | 3            | 2020-06-15    | SUBE-MAR
+7  | Técnico Solt               | Infraestructura        | Técnico de Sistemas      | 2            | 2021-11-28    | SUBE-SOL
+
+REGISTROS_ACCESO (16 filas, usados en misiones 9, 12–16, 19)
+──────────────────────────────────────────────────────────────
+id | empleado_id | empleado_nombre         | documento_id | clasificacion | fecha
+1  | 3  | Agente Nova K              | 2  | SECRETO       | 2025-06-09
+2  | 3  | Agente Nova K              | 3  | SECRETO       | 2025-06-10
+3  | 4  | Director Kael Umbra        | 2  | SECRETO       | 2025-06-10
+4  | 4  | Director Kael Umbra        | 3  | SECRETO       | 2025-06-11
+5  | 4  | Director Kael Umbra        | 7  | SECRETO       | 2025-06-12
+6  | 4  | Director Kael Umbra        | 2  | SECRETO       | 2025-06-13
+7  | 4  | Director Kael Umbra        | 7  | SECRETO       | 2025-06-13
+8  | 4  | Director Kael Umbra        | 2  | SECRETO       | 2025-06-14
+9  | 1  | Analista 734 (Usted)       | 1  | PÚBLICO       | 2025-06-14
+10 | 5  | Archivista Rho             | 4  | RESERVADO     | 2025-06-08
+11 | 5  | Archivista Rho             | 8  | RESERVADO     | 2025-06-09
+12 | 2  | Coordinadora Vera          | 2  | SECRETO       | 2025-06-14
+13 | 3  | Agente Nova K              | 2  | SECRETO       | 2025-06-11
+14 | 3  | Agente Nova K              | 7  | SECRETO       | 2025-06-12
+15 | 2  | Coordinadora Vera          | 3  | SECRETO       | 2025-06-10
+16 | 2  | Coordinadora Vera          | 7  | SECRETO       | 2025-06-11
+
+  → docs accedidos: 1, 2, 3, 4, 7, 8  →  docs SIN acceso: 5 y 6 (fantasmas)
+
+REGISTROS_METRO (11 filas, misiones 6, 7, 10, 16, 18)
+───────────────────────────────────────────────────────
+id | tarjeta_id | estacion_entrada  | timestamp_entrada       | estacion_salida  | timestamp_salida        | fecha
+1  | SUBE-NOV  | Plaza Central      | 2025-06-14 07:45:00     | Archivo Nacional | 2025-06-14 08:10:00     | 2025-06-14
+2  | SUBE-KAE  | Ministerio         | 2025-06-14 08:00:00     | NULL             | NULL                    | 2025-06-14  ← nunca salió
+3  | SUBE-734  | Plaza Central      | 2025-06-14 08:30:00     | Plaza Central    | 2025-06-14 09:00:00     | 2025-06-14
+4  | SUBE-RHO  | Archivo Nacional   | 2025-06-14 07:30:00     | Plaza Central    | 2025-06-14 08:00:00     | 2025-06-14
+5  | SUBE-KAE  | Archivo Nacional   | 2025-06-13 22:00:00     | NULL             | NULL                    | 2025-06-13  ← noche anterior
+6  | SUBE-EXT1 | Ministerio         | 2025-06-14 07:55:00     | NULL             | NULL                    | 2025-06-14  ← desconocido
+7  | SUBE-MAR  | Plaza Central      | 2025-06-14 09:15:00     | Ministerio       | 2025-06-14 09:45:00     | 2025-06-14
+8  | SUBE-EXT2 | Archivo Nacional   | 2025-06-14 21:30:00     | NULL             | NULL                    | 2025-06-14  ← desconocido, noche
+9  | SUBE-RHO  | Ministerio         | 2025-06-13 20:00:00     | Archivo Nacional | 2025-06-13 21:00:00     | 2025-06-13
+10 | SUBE-VER  | Ministerio         | 2025-06-14 08:15:00     | Plaza Central    | 2025-06-14 08:50:00     | 2025-06-14
+11 | SUBE-SOL  | Terminal Sur       | 2025-06-14 07:00:00     | Residencial Norte| 2025-06-14 07:30:00     | 2025-06-14
+
+  → cards conocidas: SUBE-734, VER, NOV, KAE, RHO, MAR, SOL
+  → cards DESCONOCIDAS el 14-jun: SUBE-EXT1, SUBE-EXT2
+
+═══════════════════════════════════════════════════════════════════
+ACTO I — EL SISTEMA (Misiones 1–7) — SELECT básico, WHERE, LIKE, IN, LIMIT
+═══════════════════════════════════════════════════════════════════
+
+MISIÓN 1: "Primer Día en la UEI"
+──────────────────────────────────
+Concepto SQL : SELECT *
+Tabla        : empleados
+Mensaje      : Coordinadora Vera da la bienvenida. "Familiarícese con el equipo."
+Query correcta:
+  SELECT * FROM empleados ORDER BY id ASC;
+Resultado esperado (7 filas, todas las columnas, orden por id):
+  1 | Analista 734... | 2 | Analista Jr.    ...
+  2 | Coordinadora Vera...  etc.
+Mensaje éxito: "Incorporación registrada. Su expediente ha sido creado en el sistema."
+
+MISIÓN 2: "Directorio Oficial"
+────────────────────────────────
+Concepto SQL : SELECT columnas específicas + alias
+Tabla        : empleados
+Mensaje      : "Genere el directorio oficial del personal. Solo necesitamos nombre, cargo y departamento."
+Query correcta:
+  SELECT nombre, cargo, departamento FROM empleados ORDER BY nombre ASC;
+Resultado esperado (7 filas, 3 columnas, orden alfabético):
+  Agente Nova K | Especialista en Seguridad | Consultoría Externa
+  Analista 734 (Usted) | Analista Jr. | Análisis de Datos
+  Archivista Rho | Archivista Principal | Archivo y Documentación
+  Coordinadora Vera | Coordinadora | Análisis de Datos
+  Director Kael Umbra | Director General | Alta Dirección
+  Supervisor Maren | Supervisor Senior | Análisis de Datos
+  Técnico Solt | Técnico de Sistemas | Infraestructura
+Mensaje éxito: "Directorio generado y publicado en el portal interno."
+
+MISIÓN 3: "Auditoría de Personal Interno"
+───────────────────────────────────────────
+Concepto SQL : WHERE con = y !=
+Tabla        : empleados
+Mensaje      : "Separación urgente: necesitamos solo el personal de plantilla interna, excluyendo consultores externos."
+Query correcta:
+  SELECT id, nombre, cargo, nivel_acceso
+  FROM empleados
+  WHERE departamento != 'Consultoría Externa'
+  ORDER BY nivel_acceso DESC, nombre ASC;
+Resultado esperado (6 filas — excluye Nova K):
+  4 | Director Kael Umbra | Director General | 5
+  2 | Coordinadora Vera   | Coordinadora     | 3
+  6 | Supervisor Maren    | Supervisor Senior | 3
+  1 | Analista 734 (Usted)| Analista Jr.     | 2
+  5 | Archivista Rho      | Archivista Principal | 2
+  7 | Técnico Solt        | Técnico de Sistemas | 2
+Mensaje éxito: "Lista de personal interno extraída. La brecha en nivel_acceso entre el Director y el resto es llamativa."
+
+MISIÓN 4: "Personal de Alto Clearance"
+────────────────────────────────────────
+Concepto SQL : WHERE con BETWEEN (y <, >)
+Tabla        : empleados
+Mensaje      : "Se convoca una sesión informativa clasificada. Solo pueden asistir empleados con nivel de acceso 4 o 5."
+Query correcta:
+  SELECT nombre, cargo, nivel_acceso
+  FROM empleados
+  WHERE nivel_acceso BETWEEN 4 AND 5
+  ORDER BY nivel_acceso DESC, nombre ASC;
+Resultado esperado (2 filas):
+  Director Kael Umbra | Director General         | 5
+  Agente Nova K       | Especialista en Seguridad| 4
+Mensaje éxito: "Convocatoria enviada. Nota: el agente externo Nova K tiene nivel de acceso 4, igual que personal de dirección."
+
+MISIÓN 5: "Búsqueda de Documentos Sensibles"
+──────────────────────────────────────────────
+Concepto SQL : WHERE LIKE con %
+Tabla        : documentos (8 filas)
+  id | titulo                               | clasificacion  | fecha_creacion
+  1  | Manual de Incorporación UEI          | PÚBLICO        | 2025-01-01
+  2  | Protocolo Omega-7                    | SECRETO        | 2024-03-15
+  3  | Protocolo de Vigilancia Ciudadana    | SECRETO        | 2024-06-20
+  4  | Informe Anual 2024                   | RESERVADO      | 2024-12-31
+  5  | Expediente: Analista 734             | ULTRA-SECRETO  | 2025-05-12
+  6  | Operación SECUELAS                   | ULTRA-SECRETO  | 2025-01-01
+  7  | Protocolo de Emergencia              | SECRETO        | 2025-02-14
+  8  | Directivas de Campo 2025             | RESERVADO      | 2025-03-01
+Mensaje      : Rho (canal no oficial): "Hay documentos que no deberían existir. Empiece buscando todo lo que lleve 'Protocolo' en el título."
+Query correcta:
+  SELECT id, titulo, clasificacion, fecha_creacion
+  FROM documentos
+  WHERE titulo LIKE '%Protocolo%'
+  ORDER BY fecha_creacion ASC;
+Resultado esperado (3 filas):
+  2 | Protocolo Omega-7                  | SECRETO | 2024-03-15
+  3 | Protocolo de Vigilancia Ciudadana  | SECRETO | 2024-06-20
+  7 | Protocolo de Emergencia            | SECRETO | 2025-02-14
+Mensaje éxito: "Tres protocolos hallados, todos SECRETO. El Protocolo de Vigilancia Ciudadana lleva un año en el sistema. ¿Quién lo autorizó?"
+
+MISIÓN 6: "Movimientos en Zonas Sensibles"
+────────────────────────────────────────────
+Concepto SQL : WHERE IN
+Tabla        : registros_metro (11 filas, ver arriba)
+Mensaje      : "El 14 de junio hubo un incidente. Filtre todos los movimientos del metro en las tres zonas de interés: Plaza Central, Ministerio y Archivo Nacional."
+Query correcta:
+  SELECT id, tarjeta_id, estacion_entrada, timestamp_entrada
+  FROM registros_metro
+  WHERE estacion_entrada IN ('Plaza Central', 'Ministerio', 'Archivo Nacional')
+  ORDER BY timestamp_entrada ASC;
+Resultado esperado (10 filas — excluye id=11 que es 'Terminal Sur'):
+  id 9  | SUBE-RHO  | Ministerio         | 2025-06-13 20:00:00
+  id 5  | SUBE-KAE  | Archivo Nacional   | 2025-06-13 22:00:00
+  id 4  | SUBE-RHO  | Archivo Nacional   | 2025-06-14 07:30:00
+  id 1  | SUBE-NOV  | Plaza Central      | 2025-06-14 07:45:00
+  id 6  | SUBE-EXT1 | Ministerio         | 2025-06-14 07:55:00
+  id 2  | SUBE-KAE  | Ministerio         | 2025-06-14 08:00:00
+  id 10 | SUBE-VER  | Ministerio         | 2025-06-14 08:15:00
+  id 3  | SUBE-734  | Plaza Central      | 2025-06-14 08:30:00
+  id 7  | SUBE-MAR  | Plaza Central      | 2025-06-14 09:15:00
+  id 8  | SUBE-EXT2 | Archivo Nacional   | 2025-06-14 21:30:00
+Mensaje éxito: "Múltiples tarjetas de metro en zonas de interés. Hay tarjetas no identificadas: SUBE-EXT1 y SUBE-EXT2."
+
+MISIÓN 7: "Los Últimos Registros"
+────────────────────────────────────
+Concepto SQL : ORDER BY + LIMIT (+ mención de DISTINCT)
+Tabla        : registros_metro (11 filas)
+Mensaje      : "Necesitamos los 4 registros de entrada más recientes del día 14 de junio. El tiempo de respuesta es crítico."
+Query correcta:
+  SELECT tarjeta_id, estacion_entrada, timestamp_entrada
+  FROM registros_metro
+  WHERE fecha = '2025-06-14'
+  ORDER BY timestamp_entrada DESC
+  LIMIT 4;
+Resultado esperado (4 filas):
+  SUBE-EXT2 | Archivo Nacional | 2025-06-14 21:30:00  ← desconocido, a las 21:30!
+  SUBE-MAR  | Plaza Central    | 2025-06-14 09:15:00
+  SUBE-734  | Plaza Central    | 2025-06-14 08:30:00
+  SUBE-VER  | Ministerio       | 2025-06-14 08:15:00
+Mensaje éxito: "El último registro del día es una tarjeta no identificada en el Archivo Nacional a las 21:30. Alguien estuvo en el archivo de noche."
+
+═══════════════════════════════════════════════════════════════════
+ACTO II — CONEXIONES (Misiones 8–11) — JOINs, NULL, expresiones
+═══════════════════════════════════════════════════════════════════
+
+MISIÓN 8: "Estructura y Presupuesto"
+──────────────────────────────────────
+Concepto SQL : INNER JOIN
+Tablas       : empleados_dept (7 filas con departamento_id FK) + departamentos (5 filas)
+  departamentos:
+    1 | Análisis de Datos        | 50000
+    2 | Alta Dirección           | 200000
+    3 | Consultoría Externa      | 0
+    4 | Infraestructura          | 30000
+    5 | Archivo y Documentación  | 15000
+  empleados_dept (mismos empleados con departamento_id en lugar de texto)
+Mensaje      : "El área de Finanzas solicita un cruce entre empleados y los presupuestos de sus departamentos."
+Query correcta:
+  SELECT e.nombre, d.nombre AS departamento, d.presupuesto
+  FROM empleados_dept e
+  JOIN departamentos d ON e.departamento_id = d.id
+  ORDER BY d.presupuesto DESC, e.nombre ASC;
+Resultado esperado (7 filas):
+  Director Kael Umbra  | Alta Dirección           | 200000
+  Analista 734 (Usted) | Análisis de Datos        | 50000
+  Coordinadora Vera    | Análisis de Datos        | 50000
+  Supervisor Maren     | Análisis de Datos        | 50000
+  Técnico Solt         | Infraestructura          | 30000
+  Archivista Rho       | Archivo y Documentación  | 15000
+  Agente Nova K        | Consultoría Externa      | 0
+Mensaje éxito: "Alta Dirección tiene 4 veces más presupuesto que Análisis de Datos. Un solo empleado gestiona ese presupuesto."
+
+MISIÓN 9: "Archivos Sin Rastro"
+────────────────────────────────
+Concepto SQL : LEFT JOIN + IS NULL
+Tablas       : documentos (8 filas) + registros_acceso (16 filas)
+  → docs accedidos: 1,2,3,4,7,8 → docs SIN acceso oficial: 5 y 6
+Mensaje      : Rho (cifrado): "Los documentos creados sobre usted no tienen ningún registro de acceso. Eso significa que alguien los leyó sin dejar rastro."
+Query correcta:
+  SELECT d.id, d.titulo, d.clasificacion
+  FROM documentos d
+  LEFT JOIN registros_acceso ra ON d.id = ra.documento_id
+  WHERE ra.id IS NULL
+  ORDER BY d.id ASC;
+Resultado esperado (2 filas):
+  5 | Expediente: Analista 734 | ULTRA-SECRETO
+  6 | Operación SECUELAS       | ULTRA-SECRETO
+Mensaje éxito: "Dos documentos ULTRA-SECRETO sin acceso registrado: uno sobre usted, otro llamado 'Operación SECUELAS'. Fueron creados pero nunca leídos... oficialmente."
+
+MISIÓN 10: "Pasajeros que Desaparecieron"
+────────────────────────────────────────────
+Concepto SQL : IS NULL / IS NOT NULL
+Tabla        : registros_metro (11 filas)
+Mensaje      : "El sistema de metro tiene un error: algunos pasajeros del 14 de junio no tienen registro de salida. Identifíquelos."
+Query correcta:
+  SELECT tarjeta_id, estacion_entrada, timestamp_entrada
+  FROM registros_metro
+  WHERE fecha = '2025-06-14'
+    AND timestamp_salida IS NULL
+  ORDER BY timestamp_entrada ASC;
+Resultado esperado (3 filas):
+  SUBE-EXT1 | Ministerio       | 2025-06-14 07:55:00  ← desconocido
+  SUBE-KAE  | Ministerio       | 2025-06-14 08:00:00  ← Umbra
+  SUBE-EXT2 | Archivo Nacional | 2025-06-14 21:30:00  ← desconocido
+Mensaje éxito: "Tres entradas sin salida: dos tarjetas desconocidas y SUBE-KAE, que pertenece al Director Kael Umbra. Entró al Ministerio y no hay registro de que haya salido."
+
+MISIÓN 11: "Irregularidades en el Inventario"
+───────────────────────────────────────────────
+Concepto SQL : Expresiones aritméticas (precio * cantidad AS valor_total)
+Tabla        : inventario (8 filas)
+  id | nombre                     | precio_unitario | cantidad | departamento
+  1  | Servidor Rack A            | 8500.00         | 3        | Alta Dirección
+  2  | Monitor 4K                 | 350.00          | 20       | Análisis de Datos
+  3  | Estación de Trabajo Segura | 2200.00         | 8        | Análisis de Datos
+  4  | Equipo de Cifrado          | 15000.00        | 5        | Alta Dirección
+  5  | Silla Ergonómica           | 180.00          | 50       | Infraestructura
+  6  | Software de Vigilancia Pro | 45000.00        | 2        | Alta Dirección
+  7  | Cable de Red               | 12.00           | 500      | Infraestructura
+  8  | Tablet de Campo            | 800.00          | 10       | Consultoría Externa
+Mensaje      : "Auditoría de inventario. Calcule el valor total de cada ítem (precio × cantidad) y muestre solo los que superen 10.000 créditos."
+Query correcta:
+  SELECT nombre, precio_unitario, cantidad, precio_unitario * cantidad AS valor_total
+  FROM inventario
+  WHERE precio_unitario * cantidad > 10000
+  ORDER BY valor_total DESC;
+Resultado esperado (4 filas — todos de Alta Dirección o Análisis):
+  Software de Vigilancia Pro | 45000 | 2 | 90000
+  Equipo de Cifrado          | 15000 | 5 | 75000
+  Servidor Rack A            | 8500  | 3 | 25500
+  Estación de Trabajo Segura | 2200  | 8 | 17600
+Mensaje éxito: "165.500 créditos en equipo de cifrado y software de vigilancia, todos en el presupuesto de Alta Dirección. El presupuesto anual asignado era 200.000."
+
+═══════════════════════════════════════════════════════════════════
+ACTO III — EL PATRÓN (Misiones 12–14) — GROUP BY, SUM/AVG/MAX, HAVING
+═══════════════════════════════════════════════════════════════════
+
+MISIÓN 12: "El Patrón de Accesos"
+────────────────────────────────────
+Concepto SQL : GROUP BY + COUNT
+Tabla        : registros_acceso (16 filas)
+  → SECRETO: Nova K (4 accesos), Umbra (6), Vera (3)
+  → PÚBLICO/RESERVADO: Analista 734 (1), Rho (2)
+Mensaje      : Rho: "Ejecute esto. Los números no mienten."
+Query correcta:
+  SELECT empleado_nombre, COUNT(*) AS total_accesos
+  FROM registros_acceso
+  WHERE clasificacion = 'SECRETO'
+  GROUP BY empleado_nombre
+  ORDER BY total_accesos DESC, empleado_nombre ASC;
+Resultado esperado (3 filas):
+  Director Kael Umbra  | 6
+  Agente Nova K        | 4
+  Coordinadora Vera    | 3
+Mensaje éxito: "El Director General encabeza la lista con 6 accesos a documentos SECRETO en una semana. Los tres primeros son personas con acceso a las mismas zonas del Ministerio."
+
+MISIÓN 13: "El Daño Financiero"
+────────────────────────────────
+Concepto SQL : SUM + COUNT + MAX + GROUP BY
+Tabla        : transacciones (9 filas)
+  id | departamento            | concepto                        | monto   | fecha      | aprobado_por_id
+  1  | Alta Dirección          | Consultoría especializada       | 850000  | 2025-03-15 | 4
+  2  | Análisis de Datos       | Material informático            | 28000   | 2025-02-10 | 2
+  3  | Alta Dirección          | Software de vigilancia          | 90000   | 2025-04-20 | 4
+  4  | Infraestructura         | Mantenimiento de red            | 15000   | 2025-01-30 | 7
+  5  | Consultoría Externa     | Honorarios agentes              | 220000  | 2025-05-01 | 4
+  6  | Análisis de Datos       | Formación                       | 12000   | 2025-03-01 | 6
+  7  | Alta Dirección          | Transporte seguro               | 45000   | 2025-05-10 | 4
+  8  | Archivo y Documentación | Digitalización                  | 8000    | 2025-04-05 | 5
+  9  | Alta Dirección          | Operación especial clasificada  | 320000  | 2025-06-01 | 4
+Mensaje      : "Se detectaron irregularidades presupuestarias. Calcule el gasto total, número de transacciones y mayor gasto por departamento."
+Query correcta:
+  SELECT departamento, SUM(monto) AS gasto_total,
+         COUNT(*) AS num_transacciones, MAX(monto) AS mayor_gasto
+  FROM transacciones
+  GROUP BY departamento
+  ORDER BY gasto_total DESC;
+Resultado esperado (5 filas):
+  Alta Dirección           | 1305000 | 4 | 850000
+  Consultoría Externa      | 220000  | 1 | 220000
+  Análisis de Datos        | 40000   | 2 | 28000
+  Infraestructura          | 15000   | 1 | 15000
+  Archivo y Documentación  | 8000    | 1 | 8000
+Mensaje éxito: "Alta Dirección gastó 1.305.000 créditos. El presupuesto asignado era 200.000. Alguien aprobó 6,5 veces el presupuesto de su propio departamento."
+
+MISIÓN 14: "Aislando la Amenaza"
+──────────────────────────────────
+Concepto SQL : HAVING
+Tabla        : registros_acceso (16 filas)
+Mensaje      : Vera (tono cauteloso): "Necesito que filtre el informe de accesos. Muestre solo a quienes hayan accedido a más de 2 documentos SECRETO. Son los casos prioritarios."
+Query correcta:
+  SELECT empleado_nombre, COUNT(*) AS total_accesos
+  FROM registros_acceso
+  WHERE clasificacion = 'SECRETO'
+  GROUP BY empleado_nombre
+  HAVING COUNT(*) > 2
+  ORDER BY total_accesos DESC;
+Resultado esperado (3 filas — todos superan el umbral):
+  Director Kael Umbra  | 6
+  Agente Nova K        | 4
+  Coordinadora Vera    | 3
+Mensaje éxito: "Los tres son personas de confianza del Director. Y la Coordinadora Vera —quien le pidió este informe— también figura en la lista."
+
+═══════════════════════════════════════════════════════════════════
+ACTO IV — EL INFORME CONSOLIDADO (Misión 15) — Repaso integral
+═══════════════════════════════════════════════════════════════════
+
+MISIÓN 15: "Informe de Situación"
+────────────────────────────────────
+Concepto SQL : WHERE IN + fecha + GROUP BY + HAVING + ORDER BY + LIMIT (repaso de todo)
+Tabla        : registros_acceso (16 filas)
+Mensaje      : Rho: "El tiempo se acaba. Consolide los accesos a documentos críticos desde el 10 de junio. Solo los que hayan tenido más de 1 acceso. Top 5."
+Query correcta:
+  SELECT empleado_nombre, clasificacion,
+         COUNT(*) AS accesos, MAX(fecha) AS ultimo_acceso
+  FROM registros_acceso
+  WHERE clasificacion IN ('SECRETO', 'ULTRA-SECRETO')
+    AND fecha > '2025-06-09'
+  GROUP BY empleado_nombre, clasificacion
+  HAVING COUNT(*) > 1
+  ORDER BY accesos DESC, empleado_nombre ASC
+  LIMIT 5;
+Verificación de datos (SECRETO/ULTRA-SECRETO y fecha > 2025-06-09):
+  Umbra  SECRETO: rows 3(Jun10),4(Jun11),5(Jun12),6(Jun13),7(Jun13),8(Jun14) = 6 → HAVING ok
+  Nova K SECRETO: rows 2(Jun10),13(Jun11),14(Jun12) = 3 → HAVING ok
+  Vera   SECRETO: rows 12(Jun14),15(Jun10),16(Jun11) = 3 → HAVING ok
+Resultado esperado (3 filas, LIMIT 5 da los 3 existentes):
+  Director Kael Umbra  | SECRETO | 6 | 2025-06-14
+  Agente Nova K        | SECRETO | 3 | 2025-06-12
+  Coordinadora Vera    | SECRETO | 3 | 2025-06-11
+Mensaje éxito: "Informe consolidado. Los mismos tres nombres, los mismos documentos, la misma semana. Algo se estaba coordinando."
+
+═══════════════════════════════════════════════════════════════════
+ACTO V — LAS PRUEBAS (Misiones 16–19) — Multi-tabla, complejas
+═══════════════════════════════════════════════════════════════════
+
+MISIÓN 16: "La Misma Noche" ★ COMPLEJA
+────────────────────────────────────────
+Concepto SQL : Triple JOIN (empleados + registros_acceso + registros_metro)
+Tablas       : empleados (con tarjeta_metro) + registros_acceso (16 filas) + registros_metro (11 filas)
+Mensaje      : Rho: "Cruce quiénes accedieron a docs SECRETO el 14 de junio con dónde estaban físicamente ese día según el metro."
+Query correcta:
+  SELECT e.nombre, e.cargo, ra.documento_id, ra.clasificacion,
+         ra.fecha AS fecha_acceso,
+         rm.estacion_entrada, rm.timestamp_entrada AS hora_metro
+  FROM empleados e
+  JOIN registros_acceso ra ON e.id = ra.empleado_id
+  JOIN registros_metro rm ON e.tarjeta_metro = rm.tarjeta_id
+  WHERE ra.clasificacion = 'SECRETO'
+    AND ra.fecha = '2025-06-14'
+    AND rm.fecha = '2025-06-14'
+  ORDER BY e.nombre ASC, ra.documento_id ASC;
+Verificación:
+  SECRETO el 14-jun en registros_acceso: row 8 (Umbra, doc2), row 12 (Vera, doc2)
+  Metro 14-jun para SUBE-KAE: row 2 (Ministerio, 08:00)
+  Metro 14-jun para SUBE-VER: row 10 (Ministerio, 08:15)
+Resultado esperado (2 filas):
+  Coordinadora Vera   | Coordinadora     | 2 | SECRETO | 2025-06-14 | Ministerio | 2025-06-14 08:15:00
+  Director Kael Umbra | Director General | 2 | SECRETO | 2025-06-14 | Ministerio | 2025-06-14 08:00:00
+Mensaje éxito: "Ambos en el Ministerio. Ambos accediendo al mismo documento (Protocolo Omega-7). Con 15 minutos de diferencia. Estaban coordinando."
+
+MISIÓN 17: "Los Contratos Fantasma" ★ COMPLEJA
+─────────────────────────────────────────────────
+Concepto SQL : Triple JOIN + GROUP BY + HAVING + SUM
+Tablas       : contratos + proveedores + empleados
+  proveedores:
+    1 | TechSecure S.A.          | techsecure@novaris.gob
+    2 | Vigilancia Total Ltda.   | vt@vt.nv
+    3 | Consultores Independ.    | ci@consult.nv
+    4 | Infraestructura Pública  | infra@pub.nv
+  contratos:
+    id | proveedor_id | monto  | fecha      | aprobado_por (employee.id)
+    1  | 1            | 90000  | 2025-04-20 | 4  (Umbra)
+    2  | 2            | 320000 | 2025-06-01 | 4  (Umbra)
+    3  | 1            | 850000 | 2025-03-15 | 4  (Umbra)
+    4  | 3            | 220000 | 2025-05-01 | 4  (Umbra)
+    5  | 4            | 15000  | 2025-01-30 | 7  (Solt)
+    6  | 2            | 45000  | 2025-05-10 | 2  (Vera)
+    7  | 3            | 28000  | 2025-02-10 | 6  (Maren)
+Mensaje      : "Hay contratos aprobados sin proceso de licitación. Identifique a quién aprobó contratos por más de 100.000 créditos totales por proveedor."
+Query correcta:
+  SELECT p.nombre AS proveedor, e.nombre AS aprobador,
+         COUNT(c.id) AS num_contratos, SUM(c.monto) AS monto_total
+  FROM contratos c
+  JOIN proveedores p ON c.proveedor_id = p.id
+  JOIN empleados e ON c.aprobado_por = e.id
+  GROUP BY p.nombre, e.nombre
+  HAVING SUM(c.monto) > 100000
+  ORDER BY monto_total DESC, proveedor ASC;
+Verificación:
+  TechSecure  + Umbra:  contratos 1+3 = 940000 → HAVING ok
+  VigTotal    + Umbra:  contrato  2   = 320000 → HAVING ok
+  Consultores + Umbra:  contrato  4   = 220000 → HAVING ok
+  VigTotal    + Vera:   contrato  6   = 45000  → excluido
+  Infraestr.  + Solt:   contrato  5   = 15000  → excluido
+  Consultores + Maren:  contrato  7   = 28000  → excluido
+Resultado esperado (3 filas):
+  TechSecure S.A.        | Director Kael Umbra | 2 | 940000
+  Vigilancia Total Ltda. | Director Kael Umbra | 1 | 320000
+  Consultores Independ.  | Director Kael Umbra | 1 | 220000
+Mensaje éxito: "1.480.000 créditos en contratos aprobados por una sola persona, sin licitación. El Reglamento de Compras exige proceso abierto para montos superiores a 50.000."
+
+MISIÓN 18: "El Testigo Silencioso" ★ COMPLEJA
+───────────────────────────────────────────────
+Concepto SQL : Subquery con NOT IN
+Tablas       : registros_metro (11 filas) + empleados (para subquery)
+Mensaje      : Rho: "Hay tarjetas en el metro ese día que no pertenecen a ningún empleado registrado. Encuéntrelas."
+Query correcta:
+  SELECT tarjeta_id, estacion_entrada, timestamp_entrada
+  FROM registros_metro
+  WHERE fecha = '2025-06-14'
+    AND tarjeta_id NOT IN (
+        SELECT tarjeta_metro FROM empleados
+        WHERE tarjeta_metro IS NOT NULL
+    )
+  ORDER BY timestamp_entrada ASC;
+Verificación:
+  Cards conocidas: SUBE-734, SUBE-VER, SUBE-NOV, SUBE-KAE, SUBE-RHO, SUBE-MAR, SUBE-SOL
+  Cards en metro el 14-jun: SUBE-NOV, SUBE-KAE, SUBE-734, SUBE-RHO, SUBE-EXT1, SUBE-MAR, SUBE-EXT2, SUBE-VER, SUBE-SOL
+  NOT IN empleados: SUBE-EXT1, SUBE-EXT2
+Resultado esperado (2 filas):
+  SUBE-EXT1 | Ministerio       | 2025-06-14 07:55:00  ← llegó antes que Umbra
+  SUBE-EXT2 | Archivo Nacional | 2025-06-14 21:30:00  ← en el archivo de noche
+Mensaje éxito: "Dos operativos externos. Uno llegó al Ministerio 5 minutos antes que el Director. El otro visitó el Archivo Nacional de noche. No figuran en ninguna base de datos de la UEI."
+
+MISIÓN 19: "El Perfil Completo" ★ COMPLEJA
+────────────────────────────────────────────
+Concepto SQL : JOIN + LEFT JOIN + COUNT DISTINCT + GROUP BY + ORDER BY
+Tablas       : empleados + registros_acceso (16 filas) + ordenes_vigilancia
+  ordenes_vigilancia (6 filas):
+    id | objetivo_id | emitido_por | fecha_inicio | status  | razon
+    1  | 3           | 4           | 2025-04-01   | ACTIVA  | Contactos externos no autorizados
+    2  | 5           | 4           | 2025-04-15   | ACTIVA  | Acceso irregular al archivo
+    3  | 1           | 4           | 2025-05-12   | ACTIVA  | Evaluación de lealtad — Protocolo SECUELAS
+    4  | 2           | 4           | 2024-12-01   | CERRADA | Sospecha de filtración
+    5  | 4           | 2           | 2025-06-01   | ACTIVA  | Auditoría independiente solicitada
+    6  | 7           | 4           | 2025-03-20   | ACTIVA  | Actividad técnica fuera de horario
+  → Umbra (id=4) emitió órdenes: 1,2,3,4,6 = 5 órdenes
+  → Vera (id=2) emitió órdenes: 5 = 1 orden
+  → Nova K (id=3): 0 órdenes
+Mensaje      : Rho: "Última pieza. Cruce quién accedió a docs clasificados con cuántas órdenes de vigilancia emitió cada uno."
+Query correcta:
+  SELECT e.nombre, e.cargo,
+         COUNT(DISTINCT ra.documento_id) AS docs_secreto,
+         COUNT(DISTINCT ov.id) AS ordenes_emitidas
+  FROM empleados e
+  JOIN registros_acceso ra ON e.id = ra.empleado_id
+  LEFT JOIN ordenes_vigilancia ov ON ov.emitido_por = e.id
+  WHERE ra.clasificacion IN ('SECRETO', 'ULTRA-SECRETO')
+  GROUP BY e.id, e.nombre, e.cargo
+  ORDER BY docs_secreto DESC, ordenes_emitidas DESC;
+Verificación:
+  Umbra: SECRETO docs únicos: 2,3,7 = 3 | órdenes emitidas: 5
+  Nova K: SECRETO docs únicos: 2,3,7 = 3 | órdenes: 0
+  Vera:   SECRETO docs únicos: 2,3,7 = 3 | órdenes: 1
+Resultado esperado (3 filas):
+  Director Kael Umbra  | Director General          | 3 | 5
+  Coordinadora Vera    | Coordinadora              | 3 | 1
+  Agente Nova K        | Especialista en Seguridad | 3 | 0
+Mensaje éxito: "Umbra accedió a tantos documentos clasificados como sus subordinados, pero además emitió 5 órdenes de vigilancia sobre su propio equipo. Una de ellas lleva su nombre: 'Evaluación de lealtad — Protocolo SECUELAS'."
+  → GIRO: el jugador ve la orden 3: objetivo_id=1 = ELLOS MISMOS
+
+═══════════════════════════════════════════════════════════════════
+ACTO VI — EL VEREDICTO (Misión 20) — Misión final
+═══════════════════════════════════════════════════════════════════
+
+MISIÓN 20: "Protocolo SECUELAS: El Veredicto Final"
+──────────────────────────────────────────────────────
+Concepto SQL : JOIN + GROUP BY + COUNT + MIN + MAX
+Tablas       : evidencias (9 filas) + empleados
+  evidencias:
+    1  | Director Kael Umbra | Vigilancia Ilegal       | 2025-04-01 | Orden s/ aprobación sobre Nova K
+    2  | Director Kael Umbra | Malversación de Fondos  | 2025-03-15 | Contrato de 850.000 s/ licitación
+    3  | Director Kael Umbra | Vigilancia Ilegal       | 2025-04-15 | Vigilancia s/ causa sobre Archivista Rho
+    4  | Director Kael Umbra | Destrucción de Evidencia| 2025-06-13 | Borrado de logs a Operación SECUELAS
+    5  | Director Kael Umbra | Vigilancia Ilegal       | 2025-05-12 | Orden sobre Analista 734 (usted)
+    6  | Director Kael Umbra | Abuso de Autoridad      | 2025-03-20 | Sistema UEI usado para fines personales
+    7  | Director Kael Umbra | Malversación de Fondos  | 2025-06-01 | 320.000 en operación no autorizada
+    8  | Coordinadora Vera   | Omisión de Denuncia     | 2025-06-14 | Conocía irregularidades, no reportó
+    9  | Agente Nova K       | Acceso No Autorizado    | 2025-06-10 | Acceso a docs fuera de su nivel
+Mensaje      : "El sistema se purga en 60 segundos. Compile el informe final. Del Director General, cuente las violaciones por tipo, con su primera y última ocurrencia. Lo que haga con esto es su decisión."
+Query correcta:
+  SELECT ev.tipo_violacion,
+         COUNT(*) AS num_casos,
+         MIN(ev.fecha) AS primera_ocurrencia,
+         MAX(ev.fecha) AS ultima_ocurrencia
+  FROM evidencias ev
+  JOIN empleados e ON ev.actor = e.nombre
+  WHERE e.cargo = 'Director General'
+  GROUP BY ev.tipo_violacion
+  ORDER BY num_casos DESC, ev.tipo_violacion ASC;
+Verificación (cargo='Director General' → Umbra, filas 1-7):
+  Vigilancia Ilegal:        filas 1,3,5 = 3 | min: 2025-04-01 | max: 2025-05-12
+  Malversación de Fondos:   filas 2,7   = 2 | min: 2025-03-15 | max: 2025-06-01
+  Abuso de Autoridad:       fila  6     = 1 | min=max: 2025-03-20
+  Destrucción de Evidencia: fila  4     = 1 | min=max: 2025-06-13
+Resultado esperado (4 filas, ties por tipo_violacion ASC):
+  Vigilancia Ilegal        | 3 | 2025-04-01 | 2025-05-12
+  Malversación de Fondos   | 2 | 2025-03-15 | 2025-06-01
+  Abuso de Autoridad       | 1 | 2025-03-20 | 2025-03-20
+  Destrucción de Evidencia | 1 | 2025-06-13 | 2025-06-13
+Mensaje éxito: "Informe transmitido al Tribunal de Control Independiente.\n\nEl Protocolo SECUELAS era una trampa de lealtad. Usted era el objetivo. Pero también fue quien recopiló las pruebas que lo detuvieron.\n\n— FIN DE LA SIMULACIÓN —"
+
+═══════════════════════════════════════════════════════════════════
+RESUMEN DE PROGRESIÓN SQL
+═══════════════════════════════════════════════════════════════════
+
+Misión | Concepto principal                        | Habilidad SQLBolt
+──────────────────────────────────────────────────────────────────
+1      | SELECT *                                   | Lección 1
+2      | SELECT columnas + ORDER BY                 | Lección 1-4
+3      | WHERE = y !=                               | Lección 2
+4      | WHERE BETWEEN                              | Lección 2
+5      | WHERE LIKE %                               | Lección 3
+6      | WHERE IN                                   | Lección 3
+7      | ORDER BY + LIMIT                           | Lección 4
+8      | INNER JOIN                                 | Lección 6
+9      | LEFT JOIN + IS NULL                        | Lecciones 7-8
+10     | IS NULL / IS NOT NULL                      | Lección 8
+11     | Expresiones aritméticas + alias            | Lección 9
+12     | GROUP BY + COUNT                           | Lección 10
+13     | SUM + COUNT + MAX + GROUP BY               | Lección 10
+14     | HAVING                                     | Lección 11
+15     | Repaso integral (IN + fecha + GROUP BY + HAVING + LIMIT) | Review
+16     | Triple JOIN (3 tablas)                     | Compleja
+17     | JOIN + GROUP BY + HAVING + SUM             | Compleja
+18     | Subquery con NOT IN                        | Compleja
+19     | JOIN + LEFT JOIN + COUNT DISTINCT          | Compleja
+20     | JOIN + GROUP BY + COUNT + MIN + MAX        | Final
+
+═══════════════════════════════════════════════════════════════════

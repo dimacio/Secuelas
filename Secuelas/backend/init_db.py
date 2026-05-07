@@ -36,25 +36,45 @@ def execute_sql_script(db_session, sql_statements):
 
 def load_initial_missions_from_config_to_db(db_session):
     """
-    Carga las misiones desde el archivo config.py (si existe la variable MISSIONS)
-    a la tabla MissionDefinitionDB si la tabla está vacía.
+    Carga las misiones desde el archivo config.py a la tabla MissionDefinitionDB.
+    Si FORCE_RELOAD_MISSIONS = True en config.py, borra todas las misiones existentes
+    y las recarga desde cero (útil al reestructurar misiones).
+    Si False, agrega solo las misiones cuyo ID no existe aún, preservando el progreso.
     """
     try:
-        from config import MISSIONS as MISSIONS_FROM_CONFIG 
+        import config as cfg
+        MISSIONS_FROM_CONFIG = cfg.MISSIONS
+        FORCE_RELOAD = getattr(cfg, 'FORCE_RELOAD_MISSIONS', False)
     except ImportError:
-        print("load_initial_missions: No se pudo importar MISSIONS desde config.py.")
+        print("load_initial_missions: No se pudo importar config.py.")
         return
-    
+
     if not MISSIONS_FROM_CONFIG:
         print("load_initial_missions: No hay misiones definidas en config.py para cargar.")
         return
 
-    if MissionDefinitionDB.query.first() is not None:
-        print("load_initial_missions: La tabla 'mission_definitions' ya contiene datos. No se cargarán misiones desde config.py.")
+    if FORCE_RELOAD:
+        print("load_initial_missions: FORCE_RELOAD_MISSIONS=True — borrando todas las misiones existentes...")
+        try:
+            MissionDefinitionDB.query.delete()
+            db_session.commit()
+            print("load_initial_missions: Misiones existentes eliminadas.")
+        except Exception as e:
+            db_session.rollback()
+            print(f"load_initial_missions: Error al borrar misiones existentes: {e}")
+            return
+        missions_to_add = MISSIONS_FROM_CONFIG
+    else:
+        # Obtener los IDs de misiones que ya existen en la BD
+        existing_ids = {m.id for m in MissionDefinitionDB.query.all()}
+        missions_to_add = [m for m in MISSIONS_FROM_CONFIG if m['id'] not in existing_ids]
+
+    if not missions_to_add:
+        print("load_initial_missions: Todas las misiones de config.py ya están en la base de datos.")
         return
 
-    print(f"load_initial_missions: Cargando {len(MISSIONS_FROM_CONFIG)} misiones desde config.py a la base de datos...")
-    for mission_data in MISSIONS_FROM_CONFIG:
+    print(f"load_initial_missions: Agregando {len(missions_to_add)} misión(es) a la base de datos...")
+    for mission_data in missions_to_add:
         try:
             setup_sql_str = ";\n".join(mission_data.get('setup_sql', []))
 
@@ -73,15 +93,15 @@ def load_initial_missions_from_config_to_db(db_session):
             print(f"  Añadiendo Misión ID {mission_data['id']}: {mission_data['title']}")
         except Exception as e:
             print(f"  Error al preparar la misión ID {mission_data['id']} para la base de datos: {e}")
-            db_session.rollback() 
-            return 
+            db_session.rollback()
+            return
 
     try:
         db_session.commit()
-        print("load_initial_missions: Misiones iniciales cargadas exitosamente a la base de datos.")
+        print(f"load_initial_missions: {len(missions_to_add)} misión(es) nueva(s) cargada(s) exitosamente.")
     except Exception as e:
         db_session.rollback()
-        print(f"load_initial_missions: Error al hacer commit de las misiones iniciales: {e}")
+        print(f"load_initial_missions: Error al hacer commit de las misiones: {e}")
 
 # This is the correctly named function that app.py expects
 def initialize_app_database(app_context): 
