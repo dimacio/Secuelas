@@ -13,7 +13,9 @@ def create_app():
     Application Factory: Creates and configures the Flask application instance.
     """
     print("create_app: Creating Flask app instance...")
-    app_instance = Flask(__name__)
+    # static_folder=None disables Flask's built-in /static route so it doesn't
+    # intercept React's /static/css/ and /static/js/ asset requests.
+    app_instance = Flask(__name__, static_folder=None)
 
     # --- Configuration ---
     print("create_app: Configuring application...")

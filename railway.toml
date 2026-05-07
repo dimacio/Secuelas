@@ -1,0 +1,8 @@
+[build]
+dockerfilePath = "Secuelas/Dockerfile"
+
+[deploy]
+healthcheckPath = "/api/game_state"
+healthcheckTimeout = 60
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3

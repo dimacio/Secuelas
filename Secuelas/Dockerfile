@@ -3,11 +3,11 @@ FROM node:18-alpine AS frontend-builder
 WORKDIR /frontend
 
 # Install dependencies first (better layer caching)
-COPY frontend/package.json frontend/package-lock.json* ./
+COPY Secuelas/frontend/package.json Secuelas/frontend/package-lock.json* ./
 RUN npm install
 
 # Copy source and build
-COPY frontend/ .
+COPY Secuelas/frontend/ .
 RUN npm run build
 
 # ── Stage 2: Python + Flask (serves API + React build) ────────────────────────
@@ -15,11 +15,11 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Install Python dependencies
-COPY backend/requirements.txt .
+COPY Secuelas/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source
-COPY backend/ .
+COPY Secuelas/backend/ .
 
 # Copy the React production build from stage 1
 COPY --from=frontend-builder /frontend/build ./build
